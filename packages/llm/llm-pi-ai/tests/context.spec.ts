@@ -3,7 +3,7 @@ import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { CallId, createMessage, createUserMessage, OFFLOADED_IMAGE_TEXT } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, GenerateOptions, Message } from '@deepseek-ai/dsh-llm'
-import { toPiContext } from '../src/context.ts'
+import { prefixFingerprint, stableToolOrder, toPiContext } from '../src/context.ts'
 import { toPiAssistant } from '../src/replay.ts'
 
 const ref: ImageAttachmentRef = {
@@ -326,5 +326,79 @@ describe('pi-ai request context conversion', () => {
     expect(() => toPiAssistant(
       history('assistant', [{ type: 'image', attachment: ref }]),
     )).toThrow(/assistant image output/)
+  })
+})
+
+describe('tool-result micro-compaction wiring', () => {
+  // Above the 32,768 default: proves the unconfigured path still compacts.
+  const oversized = 'x'.repeat(40_000)
+  const withResult = (text: string): GenerateOptions['messages'] => {
+    const callId = CallId('call-c')
+    return [
+      history('assistant', [{ type: 'tool-call', id: callId, name: 'lookup', arguments: '{}' }]),
+      user([{ type: 'tool-result', toolCallId: callId, content: [{ type: 'text', text }] }]),
+    ]
+  }
+  const resultText = (context: unknown): string => {
+    const { messages } = context as { messages: { role: string; content: { text: string }[] }[] }
+    const result = messages.find(m => m.role === 'toolResult')
+    return result?.content[0]?.text ?? ''
+  }
+
+  it('compacts at the DEFAULT budget without any configuration', () => {
+    const text = resultText(toPiContext(request(withResult(oversized))))
+    expect(text).toContain('Tool output truncated:')
+    expect(text.length).toBeLessThan(oversized.length)
+  })
+
+  it('honors a configured maxToolResultChars on the synchronous path', () => {
+    const text = resultText(toPiContext(request(withResult('y'.repeat(100))), undefined, undefined, 50))
+    // head/tail = floor(50 * .45) = 22 each ⇒ 100 − 44 = 56 omitted.
+    expect(text).toContain('Tool output truncated: 56 characters')
+    expect(text.startsWith('yyyy')).toBe(true)
+    expect(text.endsWith('yyy')).toBe(true)
+  })
+
+  it('leaves results under the configured budget byte-identical', () => {
+    expect(resultText(toPiContext(request(withResult('z'.repeat(40))), undefined, undefined, 50)))
+      .toBe('z'.repeat(40))
+  })
+})
+
+describe('prompt-cache prefix stability helpers', () => {
+  type FpContext = Parameters<typeof prefixFingerprint>[0]
+  const fpContext = (
+    systemPrompt: string,
+    userContent: string,
+    tools: { name: string }[],
+  ): FpContext => {
+    const base: FpContext = {
+      systemPrompt,
+      messages: [{ role: 'user', content: userContent, timestamp: 0 }],
+      tools: [],
+    }
+    if (tools.length > 0) base.tools = tools as NonNullable<FpContext['tools']>
+    return base
+  }
+
+  it('stableToolOrder sorts by name without mutating the input', () => {
+    const input = [{ name: 'zeta' }, { name: 'alpha' }, { name: 'mike' }]
+    const sorted = stableToolOrder(input)
+    expect(sorted.map(t => t.name)).toEqual(['alpha', 'mike', 'zeta'])
+    expect(input.map(t => t.name)).toEqual(['zeta', 'alpha', 'mike'])
+  })
+
+  it('prefixFingerprint is stable for identical prefixes and sensitive to changes', () => {
+    const first = prefixFingerprint(fpContext('sys', 'hello world', [{ name: 'b-tool' }, { name: 'a-tool' }]))
+    expect(prefixFingerprint(fpContext('sys', 'hello world', [{ name: 'b-tool' }, { name: 'a-tool' }]))).toBe(first)
+    expect(prefixFingerprint(fpContext('sys2', 'hello world', [{ name: 'b-tool' }, { name: 'a-tool' }]))).not.toBe(first)
+    expect(prefixFingerprint(fpContext('sys', 'hello world!', [{ name: 'b-tool' }, { name: 'a-tool' }]))).not.toBe(first)
+    // No tools at all is a valid prefix shape.
+    expect(prefixFingerprint(fpContext('sys', 'u', []))).toHaveLength(8)
+  })
+
+  it('prefixFingerprint honors the tool SEQUENCE (what cache heads key on)', () => {
+    expect(prefixFingerprint(fpContext('', 'u', [{ name: 'x' }, { name: 'y' }])))
+      .not.toBe(prefixFingerprint(fpContext('', 'u', [{ name: 'y' }, { name: 'x' }])))
   })
 })

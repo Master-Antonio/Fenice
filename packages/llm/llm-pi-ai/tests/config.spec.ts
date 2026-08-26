@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertServiceable, Config } from '../src/config.ts'
+import { assertServiceable, Config, resolveProfiles } from '../src/config.ts'
 
 /** Validate one hand-declared route, with the caller's fields layered onto it. */
 const routeWith = (profile: Record<string, unknown>): (() => unknown) =>
@@ -62,5 +62,62 @@ describe('modality schema boundary', () => {
     const absent = configWith({})() as Materialized
     expect(absent.providers['acme-gateway']?.models?.[0]?.input).toEqual([])
     expect(absent.providers['acme-gateway']?.defaultInput).toEqual(['text'])
+  })
+})
+
+/** One minimal serviceable pi-ai route, with the caller's fields layered on. */
+const route = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+  api: 'openai-completions',
+  baseURL: 'https://acme.test',
+  apiKeyEnv: 'PI_TEST_KEY',
+  models: [{ id: 'm' }],
+  ...overrides,
+})
+
+describe('fallback graph boundary', () => {
+  it('rejects a self-referencing fallback edge at the write that produced it', () => {
+    expect(() => resolveProfiles({ acme: route({ fallbackProvider: 'acme' }) }))
+      .toThrow(/cycle through "acme"/)
+  })
+
+  it('rejects a mutual fallback cycle at the write that produced it', () => {
+    expect(() => resolveProfiles({
+      alpha: route({ models: [{ id: 'm-a' }], fallbackProvider: 'beta' }),
+      beta: route({ models: [{ id: 'm-b' }], fallbackProvider: 'alpha' }),
+    })).toThrow(/cycle/)
+  })
+
+  it('rejects a fallback naming a route this instance does not configure', () => {
+    expect(() => resolveProfiles({ acme: route({ fallbackProvider: 'nowhere' }) }))
+      .toThrow(/not a configured route/)
+  })
+
+  it('refuses an empty fallbackModel but accepts a well-formed cascade', () => {
+    expect(() => resolveProfiles({
+      alpha: route({ fallbackProvider: 'beta', fallbackModel: '' }),
+      beta: route({ models: [{ id: 'm-b' }] }),
+    })).toThrow(/empty fallbackModel/)
+    const resolved = resolveProfiles({
+      alpha: route({ fallbackProvider: 'beta', fallbackModel: 'm-b' }),
+      beta: route({ models: [{ id: 'm-b' }] }),
+    })
+    expect(resolved.get('alpha')?.fallbackProvider).toBe('beta')
+    expect(resolved.get('alpha')?.fallbackModel).toBe('m-b')
+  })
+})
+
+describe('tool-result compaction budget boundary', () => {
+  it('materializes the default budget and carries a configured one to resolution', () => {
+    const defaults = resolveProfiles({ acme: route() })
+    expect(defaults.get('acme')?.maxToolResultChars).toBe(32_768)
+    const sized = resolveProfiles({ acme: route({ maxToolResultChars: 4096 }) })
+    expect(sized.get('acme')?.maxToolResultChars).toBe(4096)
+  })
+
+  it('refuses a non-positive or fractional budget', () => {
+    expect(() => resolveProfiles({ acme: route({ maxToolResultChars: 0 }) }))
+      .toThrow(/maxToolResultChars must be a positive integer/)
+    expect(() => resolveProfiles({ acme: route({ maxToolResultChars: 1.5 }) }))
+      .toThrow(/maxToolResultChars must be a positive integer/)
   })
 })

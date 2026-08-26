@@ -1,7 +1,7 @@
 /**
  * Settings shell and ownerless-copy plugin, browser half: renders the
- * `sidebar.settings` occupant — panel chrome, section navigation, and the
- * onboarding stage — and registers everything on the Settings pages that
+ * `sidebar.settings` occupant â€” panel chrome, section navigation, and the
+ * onboarding stage â€” and registers everything on the Settings pages that
  * belongs to no single feature: the trigger/header chrome content,
  * local-document action, General section, and `settings` dictionaries.
  * Feature-owned rows and sections stay with their features.
@@ -26,6 +26,7 @@ import { SettingsDocumentAction } from './SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from './SettingsDocumentAction.tsx'
 import { SettingsDocumentStore } from './settings-document-store.ts'
 import { en, zh, type SettingsKey } from './locales.ts'
+import { rolloutSettingsGeneral } from './locales.rollout.ts'
 
 export type {
   CloseLabelProps, HeaderContentProps, TriggerContentProps,
@@ -61,10 +62,10 @@ export const inject = ['slots', 'locale', 'connection', 'settingsScope']
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-settings-general: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ...rolloutSettingsGeneral }), 'ui-settings-general: dictionaries')
 
   // Copy freshness is framework-owned: components read the standard `t`
-  // seat, and the nav label is a thunk the owner resolves per render — no
+  // seat, and the nav label is a thunk the owner resolves per render â€” no
   // locale/change re-registration wiring.
   const t = ctx.locale.bind(NS)
   const connection = ctx.get('connection') as ConnectionHandle
@@ -81,7 +82,7 @@ export function apply(ctx: ClientContext): void {
     })
   ctx.effect(() => () => { documentController?.dispose() }, 'ui-settings-general: document action directory')
   // The settings shell: this package occupies the sidebar-owned hole and
-  // declares the settings slots. Ledger → nav-row projection as an observable
+  // declares the settings slots. Ledger â†’ nav-row projection as an observable
   // source (uSES contract: getSnapshot returns the cached rows until the
   // ledger version moves). Labels may be locale-following thunks, so the cache
   // key includes the locale revision and subscribers ride both sources.

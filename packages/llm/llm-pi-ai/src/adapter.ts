@@ -24,6 +24,7 @@
 import { createModels, getSupportedThinkingLevels } from '@earendil-works/pi-ai'
 import type {
   Api,
+  Context as PiAiRequestContext,
   Model,
   Models,
   ModelThinkingLevel,
@@ -49,9 +50,10 @@ import type {
 } from '@deepseek-ai/dsh-llm'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import { idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout'
+import type { AgentLabFlags } from './lab.ts'
 import type { ResolvedPiAiProviderProfile } from './config.ts'
-import { toPiContext } from './context.ts'
-import { toStreamChunks } from './stream.ts'
+import { prefixFingerprint, stableToolOrder, toPiContext } from './context.ts'
+import { classifyPiAiError, toStreamChunks } from './stream.ts'
 
 /** One resolution's frozen view: the profiles and the collection built from them. */
 interface PiAiSnapshot {
@@ -81,6 +83,49 @@ export interface PiAiAdapterOptions {
    * conversion because its stored replay state is unusable by this build.
    */
   onReplayDegrade?: (detail: { provider: string; model: string; reason: string }) => void
+  /**
+   * Observe one cascade hop AFTER eligibility passes and BEFORE the delegated
+   * attempt starts. Observers must never break the stream: a throwing hook is
+   * contained by the adapter. Absent compositions stay silent.
+   */
+  onFallback?: (detail: {
+    /** Route whose attempt failed and triggered the hop. */
+    fromProvider: string
+    /** Fallback route about to serve the request. */
+    toProvider: string
+    /** Model id the failing route was asked for. */
+    model: string
+    /** Model id the fallback route will receive. */
+    fallbackModel: string
+    /** Harness machine code that qualified the failure (`BREAKER_OPEN` when a tripped breaker forced the hop). */
+    code: string
+    /** Flattened failure text, for logs and counters. */
+    message: string
+  }) => void
+  /**
+   * Observe one finished streaming turn on THIS route. Emitted exactly once
+   * per frame — including the synthetic `fallback` outcome of a frame that
+   * handed off to its cascade — so external telemetry can reconstruct both
+   * legs of every hop. Absent compositions stay silent.
+   */
+  onTurnTelemetry?: (detail: {
+    provider: string
+    model: string
+    /** Harness outcome: `stop`, `tool-calls`, `max-tokens`, `error`, `aborted`, or `fallback`. */
+    finish: string
+    inputTokens?: number
+    outputTokens?: number
+    cacheReadTokens?: number
+    latencyMs: number
+    /** Stability fingerprint of the cache-relevant request prefix (when built). */
+    prefixHash?: string
+  }) => void
+  /**
+   * Current Agent-Lab experiment switches, consulted live (per request, not
+   * frozen): flipping a settings flag affects the next request without any
+   * re-registration.
+   */
+  labFlags?: () => AgentLabFlags
 }
 
 /** Copy profile stream knobs into pi-ai's common option vocabulary. */
@@ -104,6 +149,65 @@ function profileOptions(
 }
 
 /**
+ * Failure codes that justify rerouting a request to its fallback provider:
+ * transient infrastructure failures only. Deliberately excluded — aborts
+ * (caller-owned), context overflow and invalid requests (the same payload
+ * cannot succeed elsewhere), auth/quota/unsupported failures (terminal or
+ * configuration-owned), and every unknown code (fail loud rather than retry
+ * blind). This is the allow-list side of the cascade's stated contract:
+ * rate limits, gateway 5xx, timeouts, and transport drops.
+ */
+const FALLBACK_ELIGIBLE_CODES: ReadonlySet<string> = new Set([
+  'RATE_LIMIT',
+  'SERVER',
+  'TIMEOUT',
+  'TRANSPORT',
+])
+
+/**
+ * Classify one THROWN error into the shared taxonomy so thrown pre-stream and
+ * mid-stream failures are held to the same eligibility bar as in-stream error
+ * finishes. `LlmError` already carries a code; anything else is classified by
+ * message the way pi-ai's own flattened failures are.
+ * @param error - the caught value.
+ * @returns the harness machine code, or undefined when none can be derived.
+ */
+function thrownFailureCode(error: unknown): string | undefined {
+  if (error instanceof LlmError) return error.code
+  if (error instanceof Error) return classifyPiAiError(error.message)
+  return classifyPiAiError(String(error))
+}
+
+/** Flatten one caught value to the failure text telemetry carries along. */
+function streamErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  return String(error)
+}
+
+/**
+ * Resolve one requested effort to the level THIS model can take, following the
+ * alias ladder when the literal spelling is unavailable. `max` and `xhigh` are
+ * spellings newer catalogs ship ahead of their `.d.ts` entries, so the ladder
+ * compares them as plain strings; the single contained assertion covers that
+ * one out-of-union return value.
+ * @param effort - the requested level id or profile default.
+ * @param supported - the model's declared thinking levels.
+ * @returns the resolved level, or undefined when no spelling applies.
+ */
+function nearestSupportedThinkingLevel(
+  effort: ReasoningEffortIdType | ModelThinkingLevel,
+  supported: readonly ModelThinkingLevel[],
+): ModelThinkingLevel | undefined {
+  const levels = supported as readonly string[]
+  const key = String(effort)
+  if (levels.includes(key)) return key as ModelThinkingLevel
+  if (key === 'max' && levels.includes('high')) return 'high'
+  if (key === 'high' && levels.includes('xhigh')) return 'xhigh'
+  if (key === 'xhigh' && levels.includes('high')) return 'high'
+  return undefined
+}
+
+/**
  * The profile default this exact model can actually take, for DESCRIBING it.
  * A configured level the model does not support yields none rather than
  * throwing: `resolveModel` builds the model catalog, and a catalog that fails
@@ -121,9 +225,7 @@ function describableReasoningLevel(
   effort: ReasoningEffortIdType | ModelThinkingLevel | undefined,
 ): ModelThinkingLevel | undefined {
   if (effort === undefined) return undefined
-  return getSupportedThinkingLevels(model).some(level => level === effort)
-    ? effort as ModelThinkingLevel
-    : undefined
+  return nearestSupportedThinkingLevel(effort, getSupportedThinkingLevels(model))
 }
 
 /** Validate an explicit Harness/profile effort without invoking pi-ai's clamp. */
@@ -132,8 +234,8 @@ function resolveReasoningLevel(
   effort: ReasoningEffortIdType | ModelThinkingLevel | undefined,
 ): ModelThinkingLevel | undefined {
   if (effort === undefined) return undefined
-  const supported = getSupportedThinkingLevels(model)
-  if (supported.some(level => level === effort)) return effort as ModelThinkingLevel
+  const resolved = nearestSupportedThinkingLevel(effort, getSupportedThinkingLevels(model))
+  if (resolved !== undefined) return resolved
   throw new LlmError(
     `pi-ai provider "${model.provider}" model "${model.id}" does not support reasoning effort "${effort}"`,
     'UNSUPPORTED_REASONING_EFFORT',
@@ -190,6 +292,58 @@ function requestHeaders(headers: Readonly<Record<string, string>> | undefined): 
  */
 export class PiAiAdapter extends LlmAdapter {
   private snapshot: PiAiSnapshot | undefined
+
+  // --- Circuit breaker state (Agent-Lab `circuitBreaker` flag) ---------------
+  /** Failure timestamps per route, pruned to the sliding window on every read. */
+  private readonly breakerFailures = new Map<string, number[]>()
+  /** Route → instant until which the breaker stays open (skips the primary). */
+  private readonly breakerOpenedUntil = new Map<string, number>()
+
+  /** Breaker tuning: failures within the window open the route for a cooldown. */
+  private static readonly BREAKER_WINDOW_MS = 60_000
+  private static readonly BREAKER_THRESHOLD = 3
+  private static readonly BREAKER_COOLDOWN_MS = 30_000
+
+  private labFlag(name: keyof AgentLabFlags): boolean {
+    return this.config.labFlags?.()[name] === true
+  }
+
+  /**
+   * Whether the route is currently skipped by the breaker. Reading prunes the
+   * failure window; an expired cooldown clears the open state so the next
+   * attempt acts as the single half-open probe (a fresh failure re-opens).
+   */
+  private breakerOpen(route: string): boolean {
+    if (!this.labFlag('circuitBreaker')) return false
+    const now = Date.now()
+    const until = this.breakerOpenedUntil.get(route)
+    if (until !== undefined) {
+      if (now < until) return true
+      this.breakerOpenedUntil.delete(route)
+    }
+    const windowStart = now - PiAiAdapter.BREAKER_WINDOW_MS
+    const recent = (this.breakerFailures.get(route) ?? []).filter(ts => ts >= windowStart)
+    this.breakerFailures.set(route, recent)
+    return recent.length >= PiAiAdapter.BREAKER_THRESHOLD
+  }
+
+  /** Record one failed attempt against the route, tripping the breaker at threshold. */
+  private recordRouteFailure(route: string): void {
+    if (!this.labFlag('circuitBreaker')) return
+    const now = Date.now()
+    const recent = [...(this.breakerFailures.get(route) ?? []), now]
+      .filter(ts => now - ts < PiAiAdapter.BREAKER_WINDOW_MS)
+    this.breakerFailures.set(route, recent)
+    if (recent.length >= PiAiAdapter.BREAKER_THRESHOLD) {
+      this.breakerOpenedUntil.set(route, now + PiAiAdapter.BREAKER_COOLDOWN_MS)
+    }
+  }
+
+  /** A clean outcome resets the route's history and closes its breaker. */
+  private recordRouteSuccess(route: string): void {
+    this.breakerFailures.delete(route)
+    this.breakerOpenedUntil.delete(route)
+  }
 
   constructor(private readonly config: PiAiAdapterOptions) {
     super()
@@ -279,6 +433,23 @@ export class PiAiAdapter extends LlmAdapter {
   }
 
   async * stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    yield* this.streamRouted(options, new Set<string>([options.provider]))
+  }
+
+  /**
+   * One routed streaming attempt with fallback delegation.
+   * @param options - the request; `provider`/`model` name the CURRENT route.
+   * @param visits - routes already visited by THIS logical request, shared
+   *   mutably across every delegation frame. A route lands here BEFORE its
+   *   delegated attempt starts, so no later failure — from this frame's loop,
+   *   its catches, or inside any delegated stream — can route back to it: a
+   *   misconfigured cycle (A→B→A), a self-fallback, or a flapping chain stops
+   *   after visiting each route once instead of recursing forever.
+   */
+  private async *streamRouted(
+    options: GenerateOptions,
+    visits: Set<string>,
+  ): AsyncGenerator<StreamChunk> {
     if (options.stop !== undefined) {
       throw new LlmError('llm-pi-ai does not support GenerateOptions.stop', 'UNSUPPORTED_OPTION')
     }
@@ -296,12 +467,99 @@ export class PiAiAdapter extends LlmAdapter {
     )
     const apiKey = await this.config.resolveApiKey(options.provider, profile)
 
+    /**
+     * Decide whether THIS failure justifies one cascade hop, returning the
+     * delegated generator when it does. Single-flight by construction: the
+     * target route lands in the SHARED `visits` set before delegation starts,
+     * so neither this frame nor the delegated one can ever hop to it again.
+     */
+    const tryFallback = (
+      code: string | undefined,
+      failureMessage: string,
+      opts?: { bypassEligibility?: boolean },
+    ): AsyncGenerator<StreamChunk> | undefined => {
+      const route = profile.fallbackProvider
+      if (route === undefined) return undefined
+      if (!opts?.bypassEligibility && (code === undefined || !FALLBACK_ELIGIBLE_CODES.has(code))) return undefined
+      if (visits.has(route)) return undefined
+      if (!snapshot.profiles.has(route)) return undefined
+      if (options.signal?.aborted === true) return undefined
+      const fallbackModel = profile.fallbackModel ?? options.model
+      // Observability before delegation: a cascade hop is a latency- and
+      // billing-relevant fact, so it reaches the deployment log even when the
+      // fallback then succeeds. A throwing observer never breaks the stream.
+      try {
+        this.config.onFallback?.({
+          fromProvider: options.provider,
+          toProvider: route,
+          model: options.model,
+          fallbackModel,
+          code: code ?? 'UNKNOWN',
+          message: failureMessage,
+        })
+      } catch (_observerCrash) {
+        // Contained: the cascade proceeds without telemetry.
+      }
+      visits.add(route)
+      return this.streamRouted({
+        ...options,
+        provider: route,
+        model: fallbackModel,
+      }, visits)
+    }
+
     const consumer = new AbortController()
     const upstream = options.signal === undefined
       ? consumer.signal
       : AbortSignal.any([options.signal, consumer.signal])
     const streamIdleTimeoutMs = profile.streamIdleTimeoutMs
     using watchdog = idleWatchdog(upstream, streamIdleTimeoutMs, 'LLM_STREAM_IDLE_TIMEOUT')
+
+    // Whether any content chunk reached the consumer on THIS route. Shared by
+    // all three cascade sites: once tokens flowed, a restarted answer from a
+    // fallback would duplicate visible output, so every site refuses.
+    let hasYieldedTokens = false
+
+    // Agent-Lab per-turn accounting: one telemetry event per frame, plus the
+    // breaker bookkeeping that turns repeated failures into skipped attempts.
+    const startedAt = Date.now()
+    let lastUsage: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number } | undefined
+    let turnEmitted = false
+    // Fingerprint of the cache-relevant request prefix; assigned once the
+    // context is built (the breaker-skip arm legitimately has none yet).
+    let turnPrefixHash: string | undefined
+    const emitTurn = (finish: string): void => {
+      if (turnEmitted) return
+      turnEmitted = true
+      if (this.labFlag('turnTelemetry')) {
+        try {
+          this.config.onTurnTelemetry?.({
+            provider: options.provider,
+            model: options.model,
+            finish,
+            latencyMs: Date.now() - startedAt,
+            ...(turnPrefixHash !== undefined ? { prefixHash: turnPrefixHash } : {}),
+            ...lastUsage,
+          })
+        } catch (_observerCrash) {
+          // Contained: telemetry never breaks a stream.
+        }
+      }
+      if (finish === 'error' || finish === 'aborted' || finish === 'fallback') this.recordRouteFailure(options.provider)
+      else this.recordRouteSuccess(options.provider)
+    }
+
+    // Agent-Lab circuit breaker: an open route skips its doomed attempt and
+    // hops straight to the fallback (bypassing the eligibility list — the hop
+    // is forced by the breaker, not by the failure classification).
+    if (this.breakerOpen(options.provider)) {
+      const forced = tryFallback('BREAKER_OPEN', `circuit breaker open for route "${options.provider}"`, { bypassEligibility: true })
+      if (forced !== undefined) {
+        emitTurn('fallback')
+        yield* forced
+        return
+      }
+    }
 
     try {
       const containsImage = options.messages.some(message => contentHasImage(message.content))
@@ -315,9 +573,21 @@ export class PiAiAdapter extends LlmAdapter {
       const onReplayDegrade = (reason: string): void => {
         this.config.onReplayDegrade?.({ provider: options.provider, model: options.model, reason })
       }
-      const context = attachments === undefined
-        ? toPiContext(options, undefined, onReplayDegrade)
-        : await toPiContext(options, attachments, onReplayDegrade, profile.maxRequestImageBytes)
+      let context: PiAiRequestContext = attachments === undefined
+        // Sync shape: position 4 is the tool-result budget (see toPiContext).
+        ? toPiContext(options, undefined, onReplayDegrade, profile.maxToolResultChars)
+        : await toPiContext(options, attachments, onReplayDegrade, profile.maxRequestImageBytes, profile.maxToolResultChars)
+      // Agent-Lab promptCacheStablePrefix: a tool block whose ORDER drifts
+      // between turns (plugin load order, config merges) silently invalidates
+      // provider prefix caches; sorting by name makes the head of the request
+      // a pure function of the tool SET.
+      if (this.labFlag('promptCacheStablePrefix') && context.tools !== undefined) {
+        const ordered = stableToolOrder(context.tools)
+        if (ordered.some((tool, i) => tool !== context.tools?.[i])) {
+          context = { ...context, tools: ordered }
+        }
+      }
+      turnPrefixHash = prefixFingerprint(context)
       const events = snapshot.models.streamSimple(model, context, {
         ...profileOptions(profile, reasoning, apiKey),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
@@ -330,6 +600,7 @@ export class PiAiAdapter extends LlmAdapter {
       })
       const iterator = toStreamChunks(events, model.contextWindow)[Symbol.asyncIterator]()
       let exhausted = false
+      let lastFinishKind: string | undefined
       try {
         while (true) {
           const result = await watchdog.next(iterator)
@@ -337,10 +608,55 @@ export class PiAiAdapter extends LlmAdapter {
           if (timeout !== undefined) throw timeout
           if (result.done) {
             exhausted = true
+            emitTurn(lastFinishKind === 'error' || lastFinishKind === 'aborted' ? lastFinishKind : (lastFinishKind ?? 'empty'))
             return
           }
-          yield result.value
+          const value = result.value
+          if (value.type === 'usage') {
+            lastUsage = {
+              inputTokens: value.usage.inputTokens,
+              outputTokens: value.usage.outputTokens,
+              ...(value.usage.cacheReadTokens !== undefined
+                ? { cacheReadTokens: value.usage.cacheReadTokens }
+                : {}),
+            }
+          }
+          if (value.type === 'finish') lastFinishKind = value.reason.kind
+          // An in-stream error before any token reached the consumer is the
+          // canonical cascade trigger: reroute once, eligible codes only.
+          if (value.type === 'finish' && value.reason.kind === 'error' && !hasYieldedTokens) {
+            const next = tryFallback(value.reason.failure.code, value.reason.failure.message)
+            if (next !== undefined) {
+              emitTurn('fallback')
+              yield* next
+              return
+            }
+            emitTurn('error')
+          }
+          if (
+            value.type === 'text-delta'
+            || value.type === 'reasoning-delta'
+            || value.type === 'tool-call-delta'
+            || value.type === 'block-start'
+            || value.type === 'block-end'
+          ) {
+            hasYieldedTokens = true
+          }
+          yield value
         }
+      } catch (streamError) {
+        // Tokens already streamed must never be followed by a restarted answer:
+        // a duplicate would corrupt the turn even when the retry succeeds.
+        if (!hasYieldedTokens) {
+          const next = tryFallback(thrownFailureCode(streamError), streamErrorMessage(streamError))
+          if (next !== undefined) {
+            emitTurn('fallback')
+            yield* next
+            return
+          }
+        }
+        emitTurn('error')
+        throw streamError
       } finally {
         if (!exhausted) {
           consumer.abort('pi-ai stream consumer stopped')
@@ -352,6 +668,15 @@ export class PiAiAdapter extends LlmAdapter {
         }
       }
     } catch (error: unknown) {
+      if (!hasYieldedTokens) {
+        const next = tryFallback(thrownFailureCode(error), streamErrorMessage(error))
+        if (next !== undefined) {
+          emitTurn('fallback')
+          yield* next
+          return
+        }
+      }
+      emitTurn('error')
       if (timeoutOf(watchdog.signal, 'LLM_STREAM_IDLE_TIMEOUT') !== undefined) {
         throw new LlmError(`pi-ai stream idle timeout after ${streamIdleTimeoutMs}ms`, 'TIMEOUT', { cause: error })
       }

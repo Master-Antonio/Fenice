@@ -150,6 +150,24 @@ describe('conversation slot inject API', () => {
     await b.runtime.dispose()
   })
 
+  it('forkAtPrefill forks at the anchor and seeds the composer draft of the resolved session', async () => {
+    const b = await bench()
+    const chatView = b.chatViewApi(ROOT)
+    chatView.injected.forkAtPrefill(17, 'edited prompt')
+    await vi.waitFor(() => {
+      expect(b.runtime.sessions.calls).toContainEqual({
+        method: 'fork', args: [{ sessionId: ROOT, atSeq: 17, increaseTitle: true }],
+      })
+    })
+    // The fixture fork stub resolves the source id, so the seeded draft lands
+    // on ROOT's input face; the session opens regardless of seeding outcome.
+    const { state } = b.inputApi(ROOT)
+    await vi.waitFor(() => {
+      expect(state.getSnapshot().draft).toBe('edited prompt')
+    })
+    await b.runtime.dispose()
+  })
+
   it('the provide-channel input face submits through the machine sink: trim, transactional clear, failure retains the draft', async () => {
     const b = await bench()
     const { injected } = b.conversationApi(ROOT)

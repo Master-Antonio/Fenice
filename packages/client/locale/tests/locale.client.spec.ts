@@ -161,7 +161,7 @@ describe('LocaleRuntime', () => {
     // A browser naming no shipped language opens at FALLBACK_LOCALE with
     // nothing stored. Choosing that same language in the menu must become
     // durable, or a Chinese browser sharing the home still opens Chinese.
-    stubLanguages('fr-FR')
+    stubLanguages('pt-BR')
     const host = stubSettingsScope<LocaleSettings>()
     const { svc } = make(host)
     expect(svc.getLocale().active).toBe('en')
@@ -179,7 +179,7 @@ describe('LocaleRuntime', () => {
 
   it('throws on unknown locale ids', () => {
     const { svc } = make()
-    expect(() => { svc.setLocale('fr') }).toThrow('not registered')
+    expect(() => { svc.setLocale('pt') }).toThrow('not registered')
   })
 
   it('adopts a Host preference over the browser language without writing it back', () => {
@@ -217,8 +217,11 @@ describe('LocaleRuntime', () => {
     expect(make().svc.getLocale().active).toBe('en')
     stubLanguages('zh-Hant-TW')
     expect(make().svc.getLocale().active).toBe('zh')
+    // Regional variants of the rollout locales land on their language too.
+    stubLanguages('fr-CA')
+    expect(make().svc.getLocale().active).toBe('fr')
     // An unshipped language walks the list to the first one this app ships.
-    stubLanguages('fr-FR', 'en-US')
+    stubLanguages('pt-BR', 'en-US')
     expect(make().svc.getLocale().active).toBe('en')
     // Only `language` populated: an empty ordered list, and a host that
     // exposes no `languages` property at all.
@@ -228,7 +231,7 @@ describe('LocaleRuntime', () => {
     expect(make().svc.getLocale().active).toBe('en')
     // No shipped language anywhere in the browser's preferences: en is the
     // product default rather than an arbitrary near-match.
-    stubLanguages('fr-FR', 'de')
+    stubLanguages('pt-BR', 'ko')
     expect(make().svc.getLocale().active).toBe('en')
   })
 
@@ -272,11 +275,16 @@ describe('LocaleRuntime', () => {
     expect(svc.bind('ns2')('onlyZh')).toBe('onlyZh')
   })
 
-  it('exposes the two shipped locales with self-described labels', () => {
+  it('exposes the shipped locales with self-described labels', () => {
     const { svc } = make()
     expect(svc.getLocale().locales).toEqual([
       { id: 'zh', label: '中文' },
       { id: 'en', label: 'English' },
+      { id: 'it', label: 'Italiano' },
+      { id: 'de', label: 'Deutsch' },
+      { id: 'es', label: 'Español' },
+      { id: 'fr', label: 'Français' },
+      { id: 'ja', label: '日本語' },
     ])
   })
 })

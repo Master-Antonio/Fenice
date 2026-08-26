@@ -32,6 +32,15 @@ export const TurnTailNodeView = memo(function TurnTailNodeView({
   const assistantActions = messageId === undefined
     ? null
     : renderSlot('conversation.chat.assistant-actions', { messageId })
+  // Delete anchors one event before the turn's opening seq: the fork's cut is
+  // turn-granular, so the child excludes this whole turn. A frozen turn with
+  // no recorded start offers no safe anchor — hide the action rather than
+  // guessing at a boundary that could eat the wrong events. Known limitation:
+  // no anchor produces an empty child, so the FIRST turn cannot be deleted.
+  const turnStartSeq = turn.start?.seq
+  const deleteAction = turnStartSeq === undefined ? {} : {
+    onDelete: () => { forkAt(Math.max(0, turnStartSeq - 1)) },
+  }
   return (
     <div className={css.root} data-turn-tail={data.turn} data-time-hover-root>
       {tail}
@@ -44,6 +53,7 @@ export const TurnTailNodeView = memo(function TurnTailNodeView({
         clock="end"
         onBranch={() => { forkAt(closing.finalNode.seq) }}
         branchUnavailable={data.branchUnavailable || hasLaterChatNode}
+        {...deleteAction}
         className={css.actions}
         extraActions={assistantActions}
         t={t}

@@ -25,6 +25,7 @@ import { en, zh, type CommonKey } from '../locales/index.ts'
 import {
   en as settingsEn, zh as settingsZh, type SettingsLocaleKey,
 } from '../locales/settings.ts'
+import { rolloutCommon, rolloutSettingsLocale } from '../locales/rollout/index.ts'
 import type { LanguageRowInjected } from './LanguageRow.tsx'
 import { LanguageRow } from './LanguageRow.tsx'
 import { createLanguageRowStore } from './settings-store.ts'
@@ -32,7 +33,7 @@ import { createLanguageRowStore } from './settings-store.ts'
 export type { LanguageRowComponentProps, LanguageRowInjected } from './LanguageRow.tsx'
 export type { LanguageOptionRow, LanguageRowState } from './settings-store.ts'
 export type { CommonKey } from '../locales/index.ts'
-export type { LocaleId, LocaleSettings } from '../locale-settings.ts'
+export type { LocaleId, LocaleSettings, RolloutLocaleId } from '../locale-settings.ts'
 
 // The translate currency lives in ui-slots (the render machinery synthesizes
 // the seat); re-exported here so dictionary owners import one package.
@@ -103,10 +104,15 @@ export const COMMON_NS = 'common'
 /** Namespace owning this feature's settings-row copy. */
 export const SETTINGS_NS = 'settings.locale'
 
-/** The two shipped locales. */
+/** The shipped locales, in picker display order (zh/en first, then rollout). */
 const LOCALES: readonly LocaleDefinition[] = Object.freeze([
   { id: 'zh', label: '中文' },
   { id: 'en', label: 'English' },
+  { id: 'it', label: 'Italiano' },
+  { id: 'de', label: 'Deutsch' },
+  { id: 'es', label: 'Español' },
+  { id: 'fr', label: 'Français' },
+  { id: 'ja', label: '日本語' },
 ])
 
 /**
@@ -117,7 +123,15 @@ const LOCALES: readonly LocaleDefinition[] = Object.freeze([
  * behavior. `zh` alone leaves the script ambiguous, so the shipped Chinese
  * copy names the variant it actually is.
  */
-const DOCUMENT_LANGUAGE: Record<LocaleId, string> = { zh: 'zh-CN', en: 'en' }
+const DOCUMENT_LANGUAGE: Record<LocaleId, string> = {
+  zh: 'zh-CN',
+  en: 'en',
+  it: 'it',
+  de: 'de',
+  es: 'es',
+  fr: 'fr',
+  ja: 'ja',
+}
 
 /**
  * Point `<html lang>` at the active locale. Called on every locale change,
@@ -231,17 +245,22 @@ export class LocaleRuntime {
 
   /**
    * Register a declared namespace's dictionaries, all locales in one call —
-   * the typed form: each dictionary is checked against the namespace's
-   * {@link LocaleNamespaceMap} key union (a missing or extra key is a
-   * compile error), and every shipped locale is required (bilingual balance
-   * enforced at registration). Duplicate (ns, locale) throws (single occupant; a
+   * the typed form: `zh`/`en` dictionaries are REQUIRED and each is checked
+   * against the namespace's {@link LocaleNamespaceMap} key union (a missing or
+   * extra key is a compile error); the rollout locales are OPTIONAL per
+   * namespace, and their missing keys resolve through the English fallback at
+   * lookup time. Duplicate (ns, locale) throws (single occupant; a
    * namespace's texts have one owner). Registration bumps the revision so
    * mounted outlets pick up late-arriving dictionaries.
    * @param ns - a namespace merged into LocaleNamespaceMap.
-   * @param dicts - complete dictionaries keyed by locale id.
+   * @param dicts - dictionaries keyed by locale id; rollout ids may be absent.
    * @returns disposer removing every locale registered by this call (idempotent).
    */
-  register<N extends keyof LocaleNamespaceMap & string>(ns: N, dicts: Record<LocaleId, LocaleDictOf<N>>): () => void
+  register<N extends keyof LocaleNamespaceMap & string>(
+    ns: N,
+    dicts: { zh: LocaleDictOf<N>; en: LocaleDictOf<N> }
+      & Partial<Record<Exclude<LocaleId, 'zh' | 'en'>, LocaleDict>>,
+  ): () => void
   /**
    * Single-locale untyped form for namespaces outside the merge table
    * (dynamic composition, tests).
@@ -392,8 +411,8 @@ export const inject = ['slots', 'connection', 'remote', 'settingsScope']
 export function apply(ctx: ClientContext): void {
   const host = ctx.settingsScope.bind<LocaleSettings>({ namespace: LOCALE_SETTINGS_NAMESPACE })
   const locale = new LocaleRuntime(ctx, host)
-  locale.register(COMMON_NS, { zh, en })
-  locale.register(SETTINGS_NS, { zh: settingsZh, en: settingsEn })
+  locale.register(COMMON_NS, { zh, en, ...rolloutCommon })
+  locale.register(SETTINGS_NS, { zh: settingsZh, en: settingsEn, ...rolloutSettingsLocale })
   ctx.provide('locale', locale)
   // The service IS the LocaleFace (bind + getSnapshot/subscribe): install it
   // so the render machinery can synthesize the `t` standard seat.

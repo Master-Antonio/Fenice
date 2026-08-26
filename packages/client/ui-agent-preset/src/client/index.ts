@@ -1,5 +1,5 @@
 /**
- * Agent-preset surface plugin, browser half — four surfaces over one roster:
+ * Agent-preset surface plugin, browser half â€” four surfaces over one roster:
  * a General-settings row for the default preset, a chip on the new-session
  * screen for the session about to start, a read-only label in the session
  * header, and a settings section that manages the roster (copy, delete,
@@ -32,6 +32,7 @@ import { AgentPresetSeatController } from './seat-store.ts'
 import type { SeatSessionSummary } from './seat-store.ts'
 import { AgentPresetSectionController } from './section-store.ts'
 import { en, zh } from './locales.ts'
+import { rolloutSettingsAgentPreset } from './locales.rollout.ts'
 import { AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController } from './settings-store.ts'
 
 export type { AgentPresetLabelInjected, AgentPresetLabelProps } from './AgentPresetLabel.tsx'
@@ -63,7 +64,7 @@ export function apply(ctx: ClientContext): void {
     for (const read of rosterReaders) read()
   })
 
-  ctx.effect(() => ctx.locale.register('settings.agentPreset', { zh, en }), 'ui-agent-preset: settings row dictionaries')
+  ctx.effect(() => ctx.locale.register('settings.agentPreset', { zh, en, ...rolloutSettingsAgentPreset }), 'ui-agent-preset: settings row dictionaries')
 
   const injected = (): AgentPresetRowInjected => ({
     hooks: { agentPreset: controller.store },
@@ -129,11 +130,11 @@ export function apply(ctx: ClientContext): void {
 
     scope.effect(() => {
       // Connecting a workspace either creates a blank session or reuses one,
-      // and either way the chip's pick predates it — so the stage is applied
+      // and either way the chip's pick predates it â€” so the stage is applied
       // when the session arrives, not when it was made.
       const stop = scope.sessions.list.subscribe(() => { void seat.apply() })
       // The chip opens on the deployment default, so a default changed from
-      // the settings surface moves it too — otherwise the screen that starts
+      // the settings surface moves it too â€” otherwise the screen that starts
       // the next session keeps offering the previous default until a reload,
       // which is exactly the session the setting claims to govern. A staged
       // pick survives: `load()` prefers it over the refreshed fallback.
@@ -147,18 +148,18 @@ export function apply(ctx: ClientContext): void {
         scope.sessions.noteAgentPreset(sessionId, agentPreset)
       })
       // Authoring writes a FILE, not a setting, so nothing on the wire
-      // announces it — without this the screen that starts the next session
+      // announces it â€” without this the screen that starts the next session
       // keeps offering the roster as it stood when the chip first loaded, and
       // a preset authored to be used is missing from the one place it is used.
       const readRoster = (): void => { void seat.load() }
       rosterReaders.add(readRoster)
-      // Stage WITHOUT applying — the still-current running session would
-      // refuse the swap and drop the stage — then start the session it lands
+      // Stage WITHOUT applying â€” the still-current running session would
+      // refuse the swap and drop the stage â€” then start the session it lands
       // on: the chip's list-change applier composes the blank session the
       // workspace connect produces or reuses.
       creatorDraft = () => {
         // The introduce cue makes the chip announce the pick the user never
-        // made on this screen — the stage happened back in settings.
+        // made on this screen â€” the stage happened back in settings.
         seat.stage('cordis', true)
         scope.workspaces.startSession()
       }

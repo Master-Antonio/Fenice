@@ -73,15 +73,18 @@ interface ProviderEditorRenderProps extends Pick<
   'namespace' | 'schema' | 'api' | 't' | 'readOnly' | 'onClose'
 > {
   target: EditorTarget
+  /** Other configured route ids, feeding the fallback-provider datalist. */
+  siblingRoutes: readonly string[]
 }
 
 /** Render an editor for either the setup posture or an expanded provider row. */
-function renderProviderEditor({ target, ...props }: ProviderEditorRenderProps): ReactNode {
+function renderProviderEditor({ target, siblingRoutes, ...props }: ProviderEditorRenderProps): ReactNode {
   return (
     <ProviderEditor
       provider={target.provider}
       displayName={target.displayName}
       settingsPath={target.settingsPath}
+      siblingRoutes={siblingRoutes}
       {...target.declared === true ? { declared: true } : {}}
       {...props}
     />
@@ -312,6 +315,7 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
                   t,
                   readOnly: !state.writable,
                   onClose: (changed) => { closeSetup(changed, target) },
+                  siblingRoutes: state.rows.map(r => r.entry.provider).filter(p => p !== row.entry.provider),
                 })}
               </li>
             )
@@ -397,6 +401,7 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
                   t,
                   readOnly: !state.writable,
                   onClose: (changed) => { closeEditor(changed, target) },
+                  siblingRoutes: state.rows.map(r => r.entry.provider).filter(p => p !== row.entry.provider),
                 })
                 : null}
             </li>

@@ -38,6 +38,7 @@ import type {
   PiAiReasoningEfforts,
 } from './catalog.ts'
 import { buildProvider, supportedProtocols } from './provider.ts'
+import { DEFAULT_MAX_TOOL_RESULT_CHARS } from './context.ts'
 
 /** Default maximum idle interval while an adapter stream read is outstanding. */
 export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000
@@ -163,6 +164,12 @@ export interface PiAiProviderProfile {
    * requests instead of being rejected by a request-size cap.
    */
   maxRequestImageBytes?: number
+  /** Maximum characters for inline tool results in context before micro-compaction (default 32,768). */
+  maxToolResultChars?: number
+  /** Secondary provider route to cascade to when primary provider fails with 429/504 or transport error. */
+  fallbackProvider?: string
+  /** Model id to use on fallback provider; defaults to current model id. */
+  fallbackModel?: string
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
   retryPolicy?: RetryPolicyConfig
 }
@@ -174,6 +181,12 @@ export interface ResolvedPiAiProviderProfile
   provider: string
   /** Resolved display name for selectors and configuration surfaces. */
   displayName: string
+  /** Optional secondary fallback route; resolution proved it names a real, acyclic route. */
+  fallbackProvider?: string
+  /** Optional secondary fallback model id. */
+  fallbackModel?: string
+  /** Positive integer inline tool-result bound after defaulting. */
+  maxToolResultChars: number
   /** Validated credential reference, when one is configured. */
   apiKeyEnv?: CredentialRef
   /** Positive finite provider-idle interval after defaulting. */
@@ -312,6 +325,9 @@ const profile = z.object({
   websocketConnectTimeoutMs: z.natural(),
   streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
   maxRequestImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REQUEST_IMAGE_BYTES),
+  maxToolResultChars: z.number().step(1).min(1).default(32_768),
+  fallbackProvider: z.string(),
+  fallbackModel: z.string(),
   retryPolicy: RetryPolicySchema,
 })
 
@@ -379,6 +395,16 @@ export function resolveProfiles(
     if (source.displayName !== undefined && source.displayName.length === 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" has an empty displayName`)
     }
+    if (source.fallbackProvider !== undefined && source.fallbackProvider.length === 0) {
+      throw new Error(`llm-pi-ai: provider "${provider}" has an empty fallbackProvider`)
+    }
+    if (source.fallbackModel !== undefined && source.fallbackModel.length === 0) {
+      throw new Error(`llm-pi-ai: provider "${provider}" has an empty fallbackModel`)
+    }
+    const maxToolResultChars = source.maxToolResultChars ?? DEFAULT_MAX_TOOL_RESULT_CHARS
+    if (!Number.isInteger(maxToolResultChars) || maxToolResultChars <= 0) {
+      throw new Error(`llm-pi-ai: provider "${provider}" maxToolResultChars must be a positive integer`)
+    }
     const streamIdleTimeoutMs = source.streamIdleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT_MS
     if (!Number.isFinite(streamIdleTimeoutMs)
       || streamIdleTimeoutMs <= 0
@@ -423,6 +449,7 @@ export function resolveProfiles(
       ...apiKeyEnv === undefined ? {} : { apiKeyEnv: credentialRef(apiKeyEnv) },
       streamIdleTimeoutMs,
       maxRequestImageBytes,
+      maxToolResultChars,
       retryPolicy: resolveRetryPolicy(retryPolicy, `llm-pi-ai: provider "${provider}" retryPolicy`),
       ...rest.headers === undefined ? {} : { headers: { ...rest.headers } },
       ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },
@@ -437,5 +464,37 @@ export function resolveProfiles(
       }),
     })
   }
+  rejectUnserviceableFallbackGraph(resolved)
   return resolved
+}
+
+/**
+ * Refuse a fallback graph the adapter could never honor, at the write that
+ * produced it. A fallback naming an unknown route would silently disable the
+ * cascade (the runtime guard skips it), and a cycle — including the trivial
+ * self-fallback — would recurse forever under a persistent outage. Both are
+ * configuration errors: failing registration names the offending route while
+ * the last good route set keeps serving.
+ * @param resolved - the fully resolved route set.
+ * @throws Error naming the route whose fallback edge cannot be served.
+ */
+function rejectUnserviceableFallbackGraph(
+  resolved: ReadonlyMap<string, ResolvedPiAiProviderProfile>,
+): void {
+  for (const [provider, profile] of resolved) {
+    const firstHop = profile.fallbackProvider
+    if (firstHop === undefined) continue
+    if (!resolved.has(firstHop)) {
+      throw new Error(`llm-pi-ai: provider "${provider}" names fallbackProvider "${firstHop}", which is not a configured route`)
+    }
+    const visited = new Set<string>([provider])
+    let cursor = firstHop as string | undefined
+    while (cursor !== undefined) {
+      if (visited.has(cursor)) {
+        throw new Error(`llm-pi-ai: fallbackProvider chain starting at "${provider}" forms a cycle through "${cursor}"`)
+      }
+      visited.add(cursor)
+      cursor = resolved.get(cursor)?.fallbackProvider
+    }
+  }
 }

@@ -1,16 +1,16 @@
 /**
- * Skill reference plugin, browser half: registers the '/' skill source —
+ * Skill reference plugin, browser half: registers the '/' skill source â€”
  * candidates from the skill.list RPC addressed by the per-call session
  * projection's sessionId (sessions are always agent-backed; the host
  * resolves cwd from the session header). A pick lands the literal `/name `
  * text and the prompt ships the same literal (plain-text-reference decision;
  * see .agents/notes/implemented/architecture/2026-07-25-web-input-machine-and-slash-pipeline.md);
  * determinism
- * lives host-side — the pre-step boundary (`dsh-tool-skill`) recognizes a
+ * lives host-side â€” the pre-step boundary (`dsh-tool-skill`) recognizes a
  * leading `/name` naming a user-invocable skill and injects the rendered
  * body for every entry point, including `disable-model-invocation` skills the
  * model-side catalog never lists (issue #1470). The RPC rides the plugin's
- * root-context connection captured at registration — the source never reads
+ * root-context connection captured at registration â€” the source never reads
  * services off a per-call argument. Draft chip visuals derive from
  * the lexicon scan; this source implements no reference codec.
  *
@@ -19,7 +19,7 @@
  * snapshot locally, so one session costs one RPC. The scope-birth warm hook
  * prewarms the session's key; a preset switch drops that one key (the
  * catalog is the preset's, and a blank session may switch after the warm);
- * connection/reset clears everything — the host
+ * connection/reset clears everything â€” the host
  * catalog may differ across generations. A shared in-flight fetch
  * deliberately outlives any single menu interaction: closing the menu must
  * not kill the prewarm other consumers will hit, so it carries its own
@@ -37,6 +37,7 @@ import type { InputTriggerServiceContract, InputTriggerSource } from '@deepseek-
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { SkillRow } from './SkillRow.tsx'
 import { en, NS, zh, type SkillKey } from './locales.ts'
+import { rolloutSkill } from './locales.rollout.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -61,7 +62,7 @@ export const inject = ['inputTriggers', 'connection', 'sessions', 'slots', 'loca
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-skill: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ...rolloutSkill }), 'ui-skill: dictionaries')
   ctx.slots.inject('tool.call.toolview', () => ctx.slots.register(
     { name: 'tool.call.toolview', key: 'skill', locale: NS },
     SkillRow,
@@ -144,7 +145,7 @@ export function apply(ctx: ClientContext): void {
           name: skill.name,
           // The user-only marker rides the description (the menu's only
           // secondary text); `hint` is the claim-state ghost text, not a badge.
-          description: skill.modelInvocable ? skill.description : `${t('menu.userOnly')} · ${skill.description}`,
+          description: skill.modelInvocable ? skill.description : `${t('menu.userOnly')} Â· ${skill.description}`,
         }))
     },
     warm(session) {
@@ -168,7 +169,7 @@ export function apply(ctx: ClientContext): void {
     onPick({ candidate }) {
       // Plain-text-reference decision (web-input-machine note): the pick
       // lands plain text and the prompt ships the same
-      // literal. Determinism lives host-side — the host's
+      // literal. Determinism lives host-side â€” the host's
       // pre-step boundary (dsh-tool-skill) recognizes the leading /name and
       // injects the rendered body for every entry point. A name shared with a
       // host command still resolves to the command: adjudication claims the

@@ -13,6 +13,7 @@ import type { FinishReason, StreamChunk, TokenUsage } from '@deepseek-ai/dsh-llm
 import { isContextOverflow } from '@earendil-works/pi-ai'
 import type { AssistantMessage, AssistantMessageEvent, Usage as PiUsage } from '@earendil-works/pi-ai'
 import { toPiReplayState } from './replay.ts'
+import { sanitizeBlockText, sanitizeToolArguments, StreamDeltaSanitizer } from './sanitize.ts'
 
 /**
  * Map pi-ai usage (reasoning folded into output by pi-ai).
@@ -36,16 +37,38 @@ export function mapUsage(usage: PiUsage): TokenUsage {
 // wrapper a bare `terminated`, so we are left pattern-matching terse words here.
 // If pi-ai ever forwards the original Error (or a fetch/dispatcher hook that lets
 // us capture the cause ourselves), classify on `code`/`cause` instead of text.
-function classifyPiAiError(message: string): string {
+/**
+ * Classify one flattened pi-ai failure message into the harness error-code
+ * taxonomy (`RATE_LIMIT`, `SERVER`, `TIMEOUT`, `TRANSPORT`, …). Exported for
+ * the adapter's fallback eligibility check, which must classify thrown
+ * pre-stream errors the same way in-stream failures are classified.
+ * @param message - the flattened provider error text.
+ * @returns the stable harness machine code.
+ */
+export function classifyPiAiError(message: string): string {
+  if (isQuotaExceededError(message) || /\b402\b|payment_required|insufficient_quota/i.test(message)) {
+    return QUOTA_EXCEEDED_CODE
+  }
   if (/\b(?:401|403)\b/.test(message)) return 'AUTH'
-  if (isQuotaExceededError(message)) return QUOTA_EXCEEDED_CODE
   if (/\b429\b|rate.?limit/i.test(message)) return 'RATE_LIMIT'
   // A rejected request body (gateway or provider size cap): resending the
   // same request cannot succeed, so it is invalid, not transient.
-  if (/\b413\b|failed to buffer the request body:\s*length limit exceeded|payload too large|request body too large/i.test(message)) return 'INVALID_REQUEST'
-  if (/\b400\b|invalid.?request/i.test(message)) return 'INVALID_REQUEST'
-  if (/\b5\d\d\b/.test(message)) return 'SERVER'
-  if (/\btime(?:d)?\s*out\b|timeout/i.test(message)) return 'TIMEOUT'
+  if (
+    /\b413\b|payload too large|request body too large/i.test(message)
+    || /failed to buffer the request body:\s*length limit exceeded/i.test(message)
+  ) return 'INVALID_REQUEST'
+  if (/\b400\b|invalid.?request|bad request|the model rejected this request/i.test(message)) return 'INVALID_REQUEST'
+  if (
+    /\b5\d\d\b/.test(message)
+    || /\b(?:internal server error|bad gateway|service unavailable|gateway time-?out)\b/i.test(message)
+    || /\b(?:upstream error|upstream connect error|provider returned (?:an )?error)\b/i.test(message)
+    || /\b(?:gateway overloaded|hard concurrency limit|server (?:is )?overloaded|server is busy)\b/i.test(message)
+    || /\b(?:all slots are busy|no (?:available )?slot)\b/i.test(message)
+    || /\bllama runner process\b/i.test(message)
+  ) {
+    return 'SERVER'
+  }
+  if (/\btime(?:d)?\s*out\b|timeout|deadline exceeded/i.test(message)) return 'TIMEOUT'
   // A stream truncated before the provider's terminal event: each pi-ai provider
   // throws its own wording when the wire closes mid-response without a terminal
   // event (`… stream ended before message_stop`, `… before a terminal response
@@ -53,12 +76,17 @@ function classifyPiAiError(message: string): string {
   // finish_reason`). The connection dropped mid-response, so this is a transport
   // truncation, not a model-level error.
   if (/stream ended (?:before|without)\b/i.test(message)) return 'TRANSPORT'
-  if (/\b(?:network|connection|socket|fetch)\b|\bECONN[A-Z]+\b/i.test(message)
-    || /\b(?:other side closed|HTTP2 request did not get a response|WebSocket closed unexpectedly)\b/i.test(message)
+  if (
+    /\b(?:network|connection|socket|fetch)\b/i.test(message)
+    || /\bE(?:CONN[A-Z]*|NOTFOUND|AI_AGAIN|PIPE|HOSTUNREACH|NETUNREACH|TIMEDOUT)\b/i.test(message)
+    || /\bUND_ERR_[A-Z0-9_]+\b/i.test(message)
+    || /\b(?:other side closed|HTTP2 request did not get a response)\b/i.test(message)
+    || /\b(?:WebSocket closed unexpectedly|socket hang up|broken pipe)\b/i.test(message)
     // undici renders a mid-stream socket drop as a bare `terminated` (its
     // `cause` — the real SocketError — was flattened away upstream); Node's
     // stream layer says `Premature close`.
-    || /\bterminated\b|premature close/i.test(message)) {
+    || /\bterminated\b|premature close/i.test(message)
+  ) {
     return 'TRANSPORT'
   }
   return 'PI_AI_ERROR'
@@ -131,29 +159,59 @@ export async function* toStreamChunks(
   // pi-ai contentIndex ↔ our block index map 1:1 (both count blocks from 0
   // in stream order), but we track ids per index for tool calls.
   const toolIds = new Map<number, { id: string; name: string }>()
+  const textSanitizers = new Map<number, StreamDeltaSanitizer>()
+  const reasoningSanitizers = new Map<number, StreamDeltaSanitizer>()
 
   for await (const event of events) {
     switch (event.type) {
       case 'start':
         break
       case 'text_start':
+        textSanitizers.set(event.contentIndex, new StreamDeltaSanitizer())
         yield { type: 'block-start', index: event.contentIndex, blockType: 'text' }
         break
-      case 'text_delta':
-        yield { type: 'text-delta', index: event.contentIndex, text: event.delta }
+      case 'text_delta': {
+        const s = textSanitizers.get(event.contentIndex) ?? new StreamDeltaSanitizer()
+        textSanitizers.set(event.contentIndex, s)
+        const cleanDelta = s.push(event.delta)
+        if (cleanDelta.length > 0) {
+          yield { type: 'text-delta', index: event.contentIndex, text: cleanDelta }
+        }
         break
-      case 'text_end':
-        yield { type: 'block-end', index: event.contentIndex, block: { type: 'text', text: event.content } }
+      }
+      case 'text_end': {
+        const s = textSanitizers.get(event.contentIndex)
+        const remainder = s ? s.flush() : ''
+        if (remainder.length > 0) {
+          yield { type: 'text-delta', index: event.contentIndex, text: remainder }
+        }
+        textSanitizers.delete(event.contentIndex)
+        yield { type: 'block-end', index: event.contentIndex, block: { type: 'text', text: sanitizeBlockText(event.content) } }
         break
+      }
       case 'thinking_start':
+        reasoningSanitizers.set(event.contentIndex, new StreamDeltaSanitizer())
         yield { type: 'block-start', index: event.contentIndex, blockType: 'reasoning' }
         break
-      case 'thinking_delta':
-        yield { type: 'reasoning-delta', index: event.contentIndex, text: event.delta }
+      case 'thinking_delta': {
+        const s = reasoningSanitizers.get(event.contentIndex) ?? new StreamDeltaSanitizer()
+        reasoningSanitizers.set(event.contentIndex, s)
+        const cleanDelta = s.push(event.delta)
+        if (cleanDelta.length > 0) {
+          yield { type: 'reasoning-delta', index: event.contentIndex, text: cleanDelta }
+        }
         break
-      case 'thinking_end':
-        yield { type: 'block-end', index: event.contentIndex, block: { type: 'reasoning', text: event.content } }
+      }
+      case 'thinking_end': {
+        const s = reasoningSanitizers.get(event.contentIndex)
+        const remainder = s ? s.flush() : ''
+        if (remainder.length > 0) {
+          yield { type: 'reasoning-delta', index: event.contentIndex, text: remainder }
+        }
+        reasoningSanitizers.delete(event.contentIndex)
+        yield { type: 'block-end', index: event.contentIndex, block: { type: 'reasoning', text: sanitizeBlockText(event.content) } }
         break
+      }
       case 'toolcall_start': {
         // The id/name live on the partial's content at this index.
         const partial = event.partial.content[event.contentIndex]
@@ -184,7 +242,7 @@ export async function* toStreamChunks(
             name: event.toolCall.name,
             // pi-ai hands back the PARSED arguments; the harness vocabulary
             // keeps the raw string.
-            arguments: JSON.stringify(event.toolCall.arguments),
+            arguments: sanitizeToolArguments(JSON.stringify(event.toolCall.arguments)),
           },
         }
         break

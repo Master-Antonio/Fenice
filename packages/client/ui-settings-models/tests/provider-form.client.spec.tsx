@@ -750,11 +750,18 @@ describe('hand-declared providers', () => {
     cleanup()
 
     // A shipped route's models each carry their own protocol, so its editor
-    // offers no route-level protocol to override them with.
+    // offers no route-level protocol to override them with. The cascade and
+    // compaction knobs are pi-ai profile fields, so they ride every pi-ai card.
     await mountSection({ providers: { openai: { apiKeyEnv: 'OPENAI_API_KEY' } } })
     openEditor('openai')
     fireEvent.click(screen.getByText(en.customized))
-    expect(fields()).toEqual([en.keyInput, en.baseUrl])
+    expect(fields()).toEqual([
+      en.keyInput,
+      en.baseUrl,
+      en.fallbackProvider,
+      en.fallbackModel,
+      en.maxToolResultChars,
+    ])
     cleanup()
 
     // A hand-declared route named its own protocol at creation, so editing it
@@ -764,7 +771,15 @@ describe('hand-declared providers', () => {
       declaredRoutes: ['acme-gateway'],
     })
     openEditor('acme-gateway')
-    expect(fields()).toEqual([en.keyInput, en.customDisplayName, en.baseUrl, en.customApi])
+    expect(fields()).toEqual([
+      en.keyInput,
+      en.customDisplayName,
+      en.baseUrl,
+      en.customApi,
+      en.fallbackProvider,
+      en.fallbackModel,
+      en.maxToolResultChars,
+    ])
   })
 
   it('renames a declared route and falls back to its id when the name is cleared', async () => {

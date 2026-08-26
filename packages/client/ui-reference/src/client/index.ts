@@ -17,6 +17,7 @@ import { formatFileMention } from '@deepseek-ai/dsh-file-reference/grammar'
 import type { FileReferenceCandidate } from '@deepseek-ai/dsh-file-reference/types'
 import type { SessionReferenceMentionCandidate } from '@deepseek-ai/dsh-session-reference/types'
 import { en, NS, zh, type ReferenceKey } from './locales.ts'
+import { rolloutReference } from './locales.rollout.ts'
 
 /** Required services: the trigger registry, the Remote namespaces, and the copy. */
 export const inject = [
@@ -28,7 +29,7 @@ export const inject = [
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-reference: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ...rolloutReference }), 'ui-reference: dictionaries')
   const t = ctx.locale.bind(NS)
   const source: InputTriggerSource = {
     trigger: '@',
@@ -107,7 +108,7 @@ function fileCandidate(candidate: FileReferenceCandidate, preserveQuote: boolean
     mention,
   }
   return [{
-    name: `${t(directory ? 'candidate.folder' : 'candidate.file')} · ${name}${directory ? '/' : ''}`,
+    name: `${t(directory ? 'candidate.folder' : 'candidate.file')} Â· ${name}${directory ? '/' : ''}`,
     description: candidate.path,
     section: t('section.files'),
     value: JSON.stringify(value),
@@ -116,14 +117,14 @@ function fileCandidate(candidate: FileReferenceCandidate, preserveQuote: boolean
 
 function sessionCandidate(candidate: SessionReferenceMentionCandidate, t: Translate) {
   const location = candidate.cwd ?? t('candidate.noCwd')
-  const description = `${candidate.label === candidate.sessionId ? '' : `${candidate.sessionId} · `}${location} · ${new Date(candidate.createdAt).toISOString()}`
+  const description = `${candidate.label === candidate.sessionId ? '' : `${candidate.sessionId} Â· `}${location} Â· ${new Date(candidate.createdAt).toISOString()}`
   const value: ReferenceCandidateValue = {
     kind: 'session',
     label: candidate.label,
     mention: candidate.mention,
   }
   return {
-    name: `${t('candidate.session')} · ${candidate.label}`,
+    name: `${t('candidate.session')} Â· ${candidate.label}`,
     description,
     section: t('section.sessions'),
     value: JSON.stringify(value),

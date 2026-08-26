@@ -99,6 +99,13 @@ export const en = {
   onboardingSave: 'Save and continue',
   onboardingSaving: 'Saving…',
   keyRequired: 'Enter an API key to continue.',
+  fallbackProvider: 'Fallback provider ID',
+  fallbackProviderPlaceholder: 'Optional: provider route to use on error (e.g. anthropic, openai)',
+  fallbackModel: 'Fallback model ID',
+  fallbackModelPlaceholder: 'Optional: model ID to use on error (e.g. claude-3-5-haiku)',
+  maxToolResultChars: 'Max tool output chars',
+  maxToolResultCharsPlaceholder: 'Default: 32768 (smart micro-compaction threshold)',
+  fallbackProviderUnknown: 'This route is not among the configured providers; saving will be rejected.',
 }
 
 /** The settings.models namespace key union. */
@@ -201,4 +208,11 @@ export const zh: { [Key in keyof typeof en]: string } = {
   onboardingSave: '保存并继续',
   onboardingSaving: '保存中…',
   keyRequired: '请输入 API 密钥后继续。',
+  fallbackProvider: '备用提供方 ID',
+  fallbackProviderPlaceholder: '可选：发生故障时调用的备用提供方（如 anthropic, openai）',
+  fallbackModel: '备用模型 ID',
+  fallbackModelPlaceholder: '可选：备用模型 ID（如 claude-3-5-haiku）',
+  maxToolResultChars: '工具输出最大字符数',
+  maxToolResultCharsPlaceholder: '默认：32768（智能微压缩上下文阈值）',
+  fallbackProviderUnknown: '该提供方不在已配置的路由中，保存时将被拒绝。',
 }

@@ -17,6 +17,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-plan-mode/client'
 import { PlanChip } from './PlanModeControl.tsx'
 import { en, zh, type PlanKey } from './locales.ts'
+import { rolloutPlan } from './locales.rollout.ts'
 
 export type { PlanKey } from './locales.ts'
 
@@ -47,7 +48,7 @@ export const inject = ['slots', 'remote', 'remote.commands', 'locale']
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-plan: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ...rolloutPlan }), 'ui-plan: dictionaries')
 
   ctx.slots.inject('conversation.input.plan', () => ctx.slots.register({
     name: 'conversation.input.plan',

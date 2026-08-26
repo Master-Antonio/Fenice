@@ -8,7 +8,7 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 // Type-only: pulls the 'conversation.input.overlay' SlotMap declaration (the
 // key's owner) into this program so the overlay registration below typechecks
-// against the real declaration — no runtime edge to ui-conversation.
+// against the real declaration â€” no runtime edge to ui-conversation.
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
@@ -16,6 +16,7 @@ import { CommandUiRuntime } from './service.ts'
 import type { PopupSelectInjected } from './PopupSelectView.tsx'
 import { PopupSelectView } from './PopupSelectView.tsx'
 import { en, zh, type CommandKey } from './locales.ts'
+import { rolloutCommand } from './locales.rollout.ts'
 
 export { CommandUiRuntime } from './service.ts'
 export { CommandDirectory } from './directory.ts'
@@ -53,7 +54,7 @@ export const inject = ['inputTriggers', 'sessions', 'remote', 'remote.commands',
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-commands: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ...rolloutCommand }), 'ui-commands: dictionaries')
   ctx.plugin(CommandUiRuntime)
   ctx.inject(['slots', 'commandUi', 'sessions'], (scope: ClientContext) => {
     const command = scope.commandUi

@@ -1,11 +1,11 @@
 /**
- * Model selection plugin, browser half — TWO entries over ONE per-session
+ * Model selection plugin, browser half â€” TWO entries over ONE per-session
  * directory owned by ModelDirectoryResolver (`ctx.modelDirectories`). The /model popupSelect
  * contribution and the composer's named `conversation.input.model` seat both
  * load the session's provider-grouped advisory directory (`session.models`)
  * and submit through `session.selectModel` via the same directory instance,
  * so the host-reported current selection is the single fact both surfaces echo
- * — a switch made in either entry is what the other shows next. Failures
+ * â€” a switch made in either entry is what the other shows next. Failures
  * ride each entry's own retry surface (popup shell error/retry; seat menu
  * inline error) without forking the state. Addressed subagent sessions expose
  * neither entry because those Agent-bound RPCs would activate persisted
@@ -25,6 +25,7 @@ import { ModelDirectoryResolver } from './service.ts'
 import type { ModelSelectInjected } from './slots.ts'
 import { ModelSelect } from './ModelSelect.tsx'
 import { en, zh, type ModelKey } from './locales.ts'
+import { rolloutModel } from './locales.rollout.ts'
 
 export { ModelDirectory } from './directory.ts'
 export type { ModelDirectoryState } from './directory.ts'
@@ -52,7 +53,7 @@ function optionsOf(directory: SessionModels, t: TranslateNS<'model'>): SelectOpt
       rows.push({
         id: rowId(group.id, model.id),
         label: model.name,
-        detail: model.description !== undefined ? `${group.name} · ${model.description}` : group.name,
+        detail: model.description !== undefined ? `${group.name} Â· ${model.description}` : group.name,
         ...(directory.current.provider === group.id && directory.current.model === model.id
           ? { active: true } : {}),
       })
@@ -70,7 +71,7 @@ function optionsOf(directory: SessionModels, t: TranslateNS<'model'>): SelectOpt
 
 /**
  * Resolve a picked row back to its model selection by matching against the loaded
- * groups (the same data the rows were built from — ids stay opaque).
+ * groups (the same data the rows were built from â€” ids stay opaque).
  * @param state - the session's directory snapshot.
  * @param id - the picked row id.
  * @returns the row's model selection, or undefined for failure rows / stale ids.
@@ -106,7 +107,7 @@ export const inject = ['commandUi', 'connection', 'locale', 'sessions', 'slots',
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-model-selection: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ...rolloutModel }), 'ui-model-selection: dictionaries')
 
   // Non-slot faces (the command description, the popup option builder) read
   // through the bound translate; the seat component reads the standard seat.
@@ -142,7 +143,7 @@ export function apply(ctx: ClientContext): void {
           const directory = models.directoryFor(session.sessionId)
           const selection = selectionOf(directory.store.getSnapshot(), option.id)
           if (selection === undefined) {
-            throw new Error('this provider\'s catalog failed to load — pick a model from a loaded group')
+            throw new Error('this provider\'s catalog failed to load â€” pick a model from a loaded group')
           }
           await directory.select(selection)
         },

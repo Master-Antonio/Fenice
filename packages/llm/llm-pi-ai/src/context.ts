@@ -19,11 +19,31 @@ function flattenText(message: Message): string {
 }
 
 
+export const DEFAULT_MAX_TOOL_RESULT_CHARS = 32_768
+
+/**
+ * Smart micro-compaction of large tool outputs to optimize context and token
+ * costs. Preserves the head (45%) and tail (45%) of the configured budget and
+ * names the omitted span, so a model keeps both the command shape and the
+ * freshest output of an oversized tool result.
+ * @param raw - the full inline tool-result text.
+ * @param maxChars - character budget; results at or under it pass through untouched.
+ * @returns the original text, or the compacted head + marker + tail form.
+ */
+export function compactToolResultText(raw: string, maxChars = DEFAULT_MAX_TOOL_RESULT_CHARS): string {
+  if (raw.length <= maxChars) return raw
+  const headChars = Math.floor(maxChars * 0.45)
+  const tailChars = Math.floor(maxChars * 0.45)
+  const omitted = raw.length - headChars - tailChars
+  return `${raw.slice(0, headChars)}\n\n[... Tool output truncated: ${omitted} characters compacted for context efficiency ...]\n\n${raw.slice(-tailChars)}`
+}
+
 /** Flatten text recursively inside one tool result. */
-function toolResultText(blocks: readonly ContentBlock[]): string {
-  return blocks.map(block => block.type === 'text'
+function toolResultText(blocks: readonly ContentBlock[], maxChars: number): string {
+  const raw = blocks.map(block => block.type === 'text'
     ? block.text
-    : block.type === 'tool-result' ? toolResultText(block.content) : '').join('')
+    : block.type === 'tool-result' ? toolResultText(block.content, maxChars) : '').join('')
+  return compactToolResultText(raw, maxChars)
 }
 
 /** Reject image roles that pi-ai cannot replay before request-size offloading can replace them. */
@@ -96,7 +116,48 @@ function piContext(options: GenerateOptions, messages: PiMessage[]): PiContext {
   }
 }
 
-function textOnlyContext(options: GenerateOptions, onReplayDegrade?: (reason: string) => void): PiContext {
+/**
+ * Deterministic tool ordering for the Agent-Lab `promptCacheStablePrefix`
+ * flag. Provider prefix caches key on the byte-exact head of the request;
+ * a tool block whose ORDER drifts between turns (plugin load order, config
+ * merge results) silently invalidates it. Sorting by name makes the block a
+ * pure function of the tool SET. Semantically inert: every protocol treats
+ * the list as an unordered catalog.
+ * @param tools - the assembled tool list.
+ * @returns a name-sorted copy; the input is untouched.
+ */
+export function stableToolOrder<T extends { name: string }>(tools: readonly T[]): T[] {
+  return [...tools].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+}
+
+/**
+ * Compact stability fingerprint of the cache-relevant REQUEST PREFIX — the
+ * system prompt plus the tool-name sequence plus the first message's opening
+ * slice. Emitted with turn telemetry so a deployment can MEASURE prefix
+ * stability (identical hash across consecutive turns ⇒ provider caches can
+ * hit) instead of assuming it.
+ * @param context - the assembled pi-ai context.
+ * @returns a short hex fingerprint (djb2 over the canonical form).
+ */
+export function prefixFingerprint(context: PiContext): string {
+  const first = context.messages[0]
+  const canonical = JSON.stringify([
+    context.systemPrompt ?? '',
+    context.tools?.map(tool => tool.name) ?? [],
+    first === undefined ? '' : `${first.role}:${JSON.stringify(first.content).slice(0, 200)}`,
+  ])
+  let hash = 5381
+  for (let i = 0; i < canonical.length; i += 1) {
+    hash = ((hash << 5) + hash + canonical.charCodeAt(i)) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
+}
+
+function textOnlyContext(
+  options: GenerateOptions,
+  onReplayDegrade?: (reason: string) => void,
+  maxToolResultChars: number = DEFAULT_MAX_TOOL_RESULT_CHARS,
+): PiContext {
   const toolNames = new Map<CallId, string>()
   const messages: PiMessage[] = []
   for (const message of options.messages) {
@@ -123,7 +184,7 @@ function textOnlyContext(options: GenerateOptions, onReplayDegrade?: (reason: st
         toolName: toolNames.get(result.toolCallId) ?? 'unknown',
         content: [{
           type: 'text',
-          text: toolResultText(result.content) || '(no output)',
+          text: toolResultText(result.content, maxToolResultChars) || '(no output)',
         }],
         isError: result.isError ?? false,
         timestamp: 0,
@@ -139,12 +200,14 @@ function textOnlyContext(options: GenerateOptions, onReplayDegrade?: (reason: st
  * @param options - the harness request; `options.system` maps to pi-ai's single `systemPrompt` slot.
  * @param attachments - absent; selects the synchronous conversion.
  * @param onReplayDegrade - forwarded to {@link toPiAssistant} for each assistant message.
+ * @param maxToolResultChars - inline tool-result character budget; omission uses the 32,768 default.
  * @returns the pi-ai context; `tools` is omitted when the request declares none.
  */
 export function toPiContext(
   options: GenerateOptions,
   attachments?: undefined,
   onReplayDegrade?: (reason: string) => void,
+  maxToolResultChars?: number,
 ): PiContext
 /**
  * Convert harness history to a pi-ai Context while resolving durable images.
@@ -156,6 +219,7 @@ export function toPiContext(
  * @param attachments - durable byte resolver for image references.
  * @param onReplayDegrade - forwarded to {@link toPiAssistant} for each assistant message.
  * @param maxRequestImageBytes - request-level bound on base64-encoded image payload; omission leaves every image in place.
+ * @param maxToolResultChars - inline tool-result character budget; omission uses the 32,768 default.
  * @returns the asynchronously resolved pi-ai context.
  */
 export function toPiContext(
@@ -163,16 +227,22 @@ export function toPiContext(
   attachments: AttachmentStore,
   onReplayDegrade?: (reason: string) => void,
   maxRequestImageBytes?: number,
+  maxToolResultChars?: number,
 ): Promise<PiContext>
 export function toPiContext(
   options: GenerateOptions,
   attachments?: AttachmentStore,
   onReplayDegrade?: (reason: string) => void,
-  maxRequestImageBytes?: number,
+  // Overload-dependent BY DESIGN, mirroring the two public shapes above: on
+  // the synchronous path (no attachments) this slot IS the tool-result char
+  // budget; on the image path it is the request image-payload bound and the
+  // budget rides in the next slot instead.
+  imageBoundOrBudget?: number,
+  maxToolResultChars?: number,
 ): PiContext | Promise<PiContext> {
   return attachments === undefined
-    ? textOnlyContext(options, onReplayDegrade)
-    : toPiContextWithImages(options, attachments, onReplayDegrade, maxRequestImageBytes)
+    ? textOnlyContext(options, onReplayDegrade, imageBoundOrBudget)
+    : toPiContextWithImages(options, attachments, onReplayDegrade, imageBoundOrBudget, maxToolResultChars)
 }
 
 async function toPiContextWithImages(
@@ -180,6 +250,7 @@ async function toPiContextWithImages(
   attachments: AttachmentStore,
   onReplayDegrade?: (reason: string) => void,
   maxRequestImageBytes?: number,
+  maxToolResultChars: number = DEFAULT_MAX_TOOL_RESULT_CHARS,
 ): Promise<PiContext> {
   assertSupportedImageRoles(options.messages)
   const requestMessages = offloadRequestImages(options.messages, maxRequestImageBytes)
@@ -218,7 +289,7 @@ async function toPiContextWithImages(
         toolCallId: result.toolCallId,
         toolName: toolNames.get(result.toolCallId) ?? 'unknown',
         content: typeof resultContent === 'string'
-          ? [{ type: 'text', text: resultContent || '(no output)' }]
+          ? [{ type: 'text', text: compactToolResultText(resultContent, maxToolResultChars) || '(no output)' }]
           : resultContent,
         isError: result.isError ?? false,
         timestamp: 0,

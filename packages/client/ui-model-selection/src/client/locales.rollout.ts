@@ -1,0 +1,106 @@
+/**
+ * Rollout-language dictionaries for this package's locale namespace.
+ * Emitted by scripts/tmp-i18n-emit-all.ts; keys mirror the zh/en pair and
+ * missing entries fall back to English at lookup time.
+ */
+import type { RolloutLocaleId } from '@deepseek-ai/dsh-client-locale'
+
+const it: Record<string, string> = {
+  'command.description': 'Seleziona il modello per questa conversazione',
+  'option.loadError': 'Caricamento del catalogo non riuscito: {message}',
+  'trigger.fallback': 'Seleziona modello',
+  'trigger.selectAria': 'Seleziona modello',
+  'trigger.aria': 'Seleziona modello, attuale {model}',
+  'trigger.ariaEffort': 'Seleziona modello, attuale {model}, sforzo di ragionamento {effort}',
+  'menu.aria': 'Modello e sforzo di ragionamento',
+  'menu.model': 'Modello',
+  'menu.effort': 'Sforzo',
+  'effort.providerDefault': 'Predefinito',
+  'status.loading': "Aggiornamento dell'elenco dei modelli…",
+  'error.action': 'Operazione sul modello non riuscita: {message}',
+  'action.reload': 'Ricarica',
+  'warning.groupLoad': 'Caricamento di {name} non riuscito: {message}',
+  'empty.models': 'Nessun modello disponibile.',
+  'blocked.composer': 'Questo modello non è disponibile — selezionalne uno per continuare',
+  'empty.efforts': 'Questo modello non offre livelli di sforzo di ragionamento.',
+}
+const de: Record<string, string> = {
+  'command.description': 'Modell für diese Unterhaltung auswählen',
+  'option.loadError': 'Katalog konnte nicht geladen werden: {message}',
+  'trigger.fallback': 'Modell auswählen',
+  'trigger.selectAria': 'Modell auswählen',
+  'trigger.aria': 'Modell auswählen, aktuell {model}',
+  'trigger.ariaEffort': 'Modell auswählen, aktuell {model}, Reasoning-Aufwand {effort}',
+  'menu.aria': 'Modell und Reasoning-Aufwand',
+  'menu.model': 'Modell',
+  'menu.effort': 'Aufwand',
+  'effort.providerDefault': 'Standard',
+  'status.loading': 'Modellliste wird aktualisiert…',
+  'error.action': 'Modellaktion fehlgeschlagen: {message}',
+  'action.reload': 'Neu laden',
+  'warning.groupLoad': '{name} konnte nicht geladen werden: {message}',
+  'empty.models': 'Keine Modelle verfügbar.',
+  'blocked.composer': 'Dieses Modell ist nicht verfügbar — bitte ein Modell auswählen, um fortzufahren',
+  'empty.efforts': 'Dieses Modell bietet keine Stufen für den Reasoning-Aufwand.',
+}
+const es: Record<string, string> = {
+  'command.description': 'Selecciona el modelo para esta conversación',
+  'option.loadError': 'No se pudo cargar el catálogo: {message}',
+  'trigger.fallback': 'Seleccionar modelo',
+  'trigger.selectAria': 'Seleccionar modelo',
+  'trigger.aria': 'Seleccionar modelo, actual {model}',
+  'trigger.ariaEffort': 'Seleccionar modelo, actual {model}, esfuerzo de razonamiento {effort}',
+  'menu.aria': 'Modelo y esfuerzo de razonamiento',
+  'menu.model': 'Modelo',
+  'menu.effort': 'Esfuerzo',
+  'effort.providerDefault': 'Predeterminado',
+  'status.loading': 'Actualizando la lista de modelos…',
+  'error.action': 'Falló la operación del modelo: {message}',
+  'action.reload': 'Recargar',
+  'warning.groupLoad': 'Falló la carga de {name}: {message}',
+  'empty.models': 'No hay modelos disponibles.',
+  'blocked.composer': 'Este modelo no está disponible — selecciona uno para continuar',
+  'empty.efforts': 'Este modelo no ofrece niveles de esfuerzo de razonamiento.',
+}
+const fr: Record<string, string> = {
+  'command.description': 'Sélectionner le modèle pour cette conversation',
+  'option.loadError': 'Échec du chargement du catalogue : {message}',
+  'trigger.fallback': 'Sélectionner un modèle',
+  'trigger.selectAria': 'Sélectionner un modèle',
+  'trigger.aria': 'Sélectionner un modèle, actuellement {model}',
+  'trigger.ariaEffort': 'Sélectionner un modèle, actuellement {model}, effort de raisonnement {effort}',
+  'menu.aria': 'Modèle et effort de raisonnement',
+  'menu.model': 'Modèle',
+  'menu.effort': 'Effort',
+  'effort.providerDefault': 'Par défaut',
+  'status.loading': 'Actualisation de la liste des modèles…',
+  'error.action': "Échec de l'opération sur le modèle : {message}",
+  'action.reload': 'Recharger',
+  'warning.groupLoad': 'Échec du chargement de {name} : {message}',
+  'empty.models': 'Aucun modèle disponible.',
+  'blocked.composer': 'Ce modèle est indisponible — sélectionnez-en un pour continuer',
+  'empty.efforts': "Ce modèle ne propose aucun niveau d'effort de raisonnement.",
+}
+const ja: Record<string, string> = {
+  'command.description': 'この会話で使用するモデルを選択します',
+  'option.loadError': 'カタログの読み込みに失敗しました: {message}',
+  'trigger.fallback': 'モデルを選択',
+  'trigger.selectAria': 'モデルを選択',
+  'trigger.aria': 'モデルを選択（現在: {model}）',
+  'trigger.ariaEffort': 'モデルを選択（現在: {model}、推論レベル: {effort}）',
+  'menu.aria': 'モデルと推論レベル',
+  'menu.model': 'モデル',
+  'menu.effort': '推論レベル',
+  'effort.providerDefault': 'デフォルト',
+  'status.loading': 'モデル一覧を更新しています…',
+  'error.action': 'モデル操作に失敗しました: {message}',
+  'action.reload': '再読み込み',
+  'warning.groupLoad': '{name} の読み込みに失敗しました: {message}',
+  'empty.models': '利用可能なモデルがありません。',
+  'blocked.composer': 'このモデルは利用できません。続行するにはモデルを選択してください',
+  'empty.efforts': 'このモデルには推論レベルがありません。',
+}
+
+export const rolloutModel: Record<RolloutLocaleId, Record<string, string>> = {
+  it, de, es, fr, ja,
+}

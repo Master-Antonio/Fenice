@@ -2,7 +2,7 @@
  * Workspace plugin, browser half. Two registrations: WorkspaceBrowser fills
  * the sidebar shell's `sidebar.workspaces` hole (the whole browsing region),
  * and WorkspacePicker fills the conversation hero's picker hole
- * (`conversation.hero.workspace` — both hero forms). Both read real Host
+ * (`conversation.hero.workspace` â€” both hero forms). Both read real Host
  * Workspaces through the global useWorkspaces hook, and each declares its
  * own `single` directory-flow child hole for the composed picker package's
  * client half (see the contract module doc). Export discipline:
@@ -18,6 +18,7 @@ import { createWorkspaceViewStore } from './stores.ts'
 import { WorkspaceBrowser } from './WorkspaceBrowser.tsx'
 import { WorkspacePicker } from './WorkspacePicker.tsx'
 import { en, zh, type WorkspaceKey } from './locales.ts'
+import { rolloutWorkspace } from './locales.rollout.ts'
 
 export type {
   DirectoryFlowOwnerProps, DirectoryFlowSlotName, DirectoryPickingHooks, DirectoryPickingInjected,
@@ -54,7 +55,7 @@ export const inject = ['slots', 'sessions', 'workspaces', 'locale', 'connection'
 export function apply(ctx: ClientContext): void {
   const connection = ctx.get('connection') as ConnectionHandle
   const hostDescription = connection.hostDescription
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-workspace: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ...rolloutWorkspace }), 'ui-workspace: dictionaries')
 
   const searchSessions: WorkspaceBrowserInjected['searchSessions'] = async (query, signal) => {
     const result = await ctx.sessions.search(query, signal)
@@ -78,7 +79,7 @@ export function apply(ctx: ClientContext): void {
     searchSessions,
     searchResultLimit: ctx.sessions.searchResultLimit,
     renameSession: async (sessionId, title) => {
-      // Row → session-face hop: rename is a per-session verb (ISession), not
+      // Row â†’ session-face hop: rename is a per-session verb (ISession), not
       // a list-service verb; the binding resolves any listed session.
       const session = ctx.sessions.binding(sessionId)?.session
       if (session === undefined) throw new Error(`unknown session "${sessionId}"`)

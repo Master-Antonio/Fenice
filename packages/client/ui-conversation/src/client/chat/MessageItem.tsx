@@ -113,18 +113,33 @@ function ModelRetryItem({ node, active, t }: {
 }
 
 /** Persistent, turn-positioned feedback for a terminal failure. */
-function TurnErrorItem({ node, t }: {
+function TurnErrorItem({ node, onFork, t }: {
   node: TurnErrorNode
+  onFork?: (() => void) | undefined
   t: ChatViewSlotProps['t']
 }) {
   return (
-    <div className={css.turnErrorRow} role="status">
-      <StateDot state="error" className={css.turnErrorDot} />
-      <div className={css.turnErrorCopy}>
-        <span className={css.turnErrorTitle}>{t('message.turnError')}</span>
-        <span className={css.turnErrorMessage}>{node.message}</span>
+    <div className={css.turnErrorRow}>
+      {/* The live-region status carries ONLY the failure facts; the action
+          sits beside it so screen readers hear the message unpolluted. */}
+      <div className={css.turnErrorMain} role="status">
+        <StateDot state="error" className={css.turnErrorDot} />
+        <div className={css.turnErrorCopy}>
+          <span className={css.turnErrorTitle}>{t('message.turnError')}</span>
+          <span className={css.turnErrorMessage}>{node.message}</span>
+        </div>
+        {node.code !== undefined && <code className={css.turnErrorCode}>{node.code}</code>}
       </div>
-      {node.code !== undefined && <code className={css.turnErrorCode}>{node.code}</code>}
+      {onFork && (
+        <button
+          type="button"
+          className={css.turnErrorForkBtn}
+          onClick={onFork}
+          title={t('message.branch')}
+        >
+          {t('message.branch')}
+        </button>
+      )}
     </div>
   )
 }
@@ -279,9 +294,18 @@ export function PendingSteeringBubble({ content, renderMessageImages, t }: {
 
 /** User and admitted-steering keyed Chat renderer. */
 export const UserMessageNodeView = memo(function UserMessageNodeView({
-  node, renderMessageImages, t,
+  node, renderMessageImages, forkAt, forkAtPrefill, t,
 }: ChatNodeViewProps<'user' | 'steering'>) {
   const data = node.data
+  // The session fork cuts at TURN granularity (the boundary is the first
+  // completed turn ending at or after the anchor), so anchoring one event
+  // before this message lands the cut inside the PREVIOUS turn: the child
+  // excludes this prompt's whole turn. Edit re-asks it from a seeded draft;
+  // delete drops it outright. Branch deliberately stays a tail-only action —
+  // forking from a mid-turn user prompt is exactly what Edit covers with a
+  // better anchor. Known limitation: no anchor can produce an empty child,
+  // so for the conversation's FIRST turn both actions degrade to a copy.
+  const beforeTurn = Math.max(0, data.seq - 1)
   return (
     <UserStyleBubble
       content={data.content}
@@ -294,6 +318,8 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
           time={data.time}
           clock="start"
           className={css.actions}
+          onEdit={(editText) => { forkAtPrefill(beforeTurn, editText) }}
+          onDelete={() => { forkAt(beforeTurn) }}
           t={t}
         />
       )}
@@ -327,8 +353,11 @@ export const RetryNodeView = memo(function RetryNodeView({ node, t }: ChatNodeVi
 })
 
 /** Terminal turn-error keyed Chat renderer. */
-export const TurnErrorNodeView = memo(function TurnErrorNodeView({ node, t }: ChatNodeViewProps<'turn-error'>) {
-  return <TurnErrorItem node={node.data} t={t} />
+export const TurnErrorNodeView = memo(function TurnErrorNodeView({ node, forkAt, t }: ChatNodeViewProps<'turn-error'>) {
+  const turn = node.location.kind === 'turn' || node.location.kind === 'step' ? node.location.turn : undefined
+  const startSeq = turn?.start?.seq ?? node.data.seq
+  const onFork = () => { forkAt(startSeq) }
+  return <TurnErrorItem node={node.data} onFork={onFork} t={t} />
 })
 
 /** Max-tokens turn-end notice keyed Chat renderer. */

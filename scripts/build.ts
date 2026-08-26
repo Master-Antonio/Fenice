@@ -18,10 +18,32 @@ function runScript(script: string, environment: NodeJS.ProcessEnv): void {
   if (packageManager === undefined || packageManager === '') {
     throw new Error('build: npm_execpath is unavailable; invoke the build through a package script')
   }
-  const result = spawnSync(process.execPath, [packageManager, 'run', script], {
+  // npm_execpath lands in three shapes across platforms and install modes: a
+  // native binary (`pnpm.exe` — spawn it directly, node cannot exec it), a JS
+  // entry (`.cjs`/`.mjs`/`.js` — run under this node), or a Windows shell shim
+  // (`.cmd`/`.bat` from a `node_modules/.bin` style path — only cmd.exe can
+  // launch those). Anything else falls back to node, matching the historical
+  // behavior for POSIX extensionless entries.
+  const lower = packageManager.toLowerCase()
+  const isNativeExe = lower.endsWith('.exe')
+  const isShellShim = lower.endsWith('.cmd') || lower.endsWith('.bat')
+  const command = isNativeExe
+    ? packageManager
+    : isShellShim
+      ? resolve(process.env.ComSpec ?? `${process.env.SystemRoot ?? ''}\\System32\\cmd.exe`)
+      : process.execPath
+  const args = isNativeExe
+    ? ['run', script]
+    : isShellShim
+      ? ['/d', '/s', '/c', `"${packageManager}" run ${script}`]
+      : [packageManager, 'run', script]
+  const result = spawnSync(command, args, {
     cwd: resolve(import.meta.dirname, '..'),
     env: environment,
     stdio: 'inherit',
+    // The shim arm passes one pre-joined, already-quoted command line; without
+    // this flag Windows would re-quote the outer quotes and mangle the path.
+    ...(isShellShim ? { windowsVerbatimArguments: true } : {}),
   })
   if (result.error !== undefined) throw result.error
   if (result.status !== 0) {

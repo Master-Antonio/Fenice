@@ -65,10 +65,18 @@ import { catalogProviderIds, catalogProviderTakesApiKey } from './catalog.ts'
 import { assertServiceable, Config, resolveProfiles } from './config.ts'
 import type { ResolvedPiAiProviderProfile } from './config.ts'
 import { discoverModels } from './discovery.ts'
+import { AGENT_LAB_NAMESPACE, AgentLabSchema, resolveLabFlags, type AgentLabFlags } from './lab.ts'
+import { LabTelemetryRecorder } from './telemetry.ts'
 
 export { PiAiAdapter } from './adapter.ts'
 export type { PiAiAdapterOptions } from './adapter.ts'
 export { Config } from './config.ts'
+export {
+  AGENT_LAB_NAMESPACE, AgentLabSchema, IMPLEMENTED_FLAGS, resolveLabFlags,
+  type AgentLabFlags,
+} from './lab.ts'
+export { LabTelemetryRecorder, agentLabDir } from './telemetry.ts'
+export type { FallbackEvent, LabTelemetryEvent, TurnEvent } from './telemetry.ts'
 export type {
   PiAiCompatProfile,
   PiAiModality,
@@ -172,6 +180,25 @@ export function apply(ctx: Context, config: Config): void {
   }
   profiles()
 
+  // Agent-Lab: the experiment flags live in their own durable namespace, and
+  // the telemetry recorder writes OUTSIDE any project tree (default
+  // `<home>/.dsh-agent-lab/telemetry/events.jsonl`, override with
+  // DSH_AGENT_LAB_DIR) so evidence never tangles with a codebase.
+  // `setSource` hands us a live GETTER over the stored section (same contract
+  // as the profile section above), resolved through the schema defaults.
+  let readLabSection: () => Partial<AgentLabFlags> = () => ({})
+  const labFlags = (): AgentLabFlags => resolveLabFlags(readLabSection())
+  const labTelemetry = new LabTelemetryRecorder()
+  installSettingsSection(ctx, AGENT_LAB_NAMESPACE, AgentLabSchema, resolveLabFlags(), {
+    setSource: (source) => {
+      readLabSection = source
+      labFlags()
+    },
+    // Nothing derives registration-level state from these flags — the adapter
+    // reads them live per request — so the change hook is intentionally empty.
+    onChange: () => {},
+  })
+
   const resolveApiKey = async (
     provider: string,
     profile: ResolvedPiAiProviderProfile,
@@ -207,6 +234,27 @@ export function apply(ctx: Context, config: Config): void {
         + ` sending that message as provider-neutral content (${reason})`,
       )
     },
+    onFallback: ({ fromProvider, toProvider, model, fallbackModel, code, message }) => {
+      ctx.logger.warn(
+        `llm-pi-ai: cascade "${fromProvider}/${model}" -> "${toProvider}/${fallbackModel}"`
+        + ` after ${code}: ${message}`,
+      )
+      // Agent-Lab cascade metrics: the external JSONL record rides the same
+      // observation; the flag is consulted live so flipping it in settings
+      // stops (or starts) recording on the next hop.
+      if (labFlags().cascadeMetrics) {
+        labTelemetry.append({
+          feature: 'fallback',
+          ts: new Date().toISOString(),
+          fromProvider, toProvider, model, fallbackModel, code, message,
+        })
+      }
+    },
+    onTurnTelemetry: (detail) => {
+      if (!labFlags().turnTelemetry) return
+      labTelemetry.append({ feature: 'turn', ts: new Date().toISOString(), ...detail })
+    },
+    labFlags: () => labFlags(),
   })
   // The full installed catalog is configurable from the moment the plugin
   // mounts — dormant or not — so configuration surfaces can offer every

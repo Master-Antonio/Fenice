@@ -1,9 +1,12 @@
-// Shared IconActions chrome for user and assistant messages: copy
-// live, optional branch wiring, and an optional date-aware clock.
-
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import {
-  IconBranchOutline16, IconCheckOutline16, IconCopyOutline16, Tooltip, writeClipboard,
+  IconBranchOutline16,
+  IconCheckOutline16,
+  IconCopyOutline16,
+  IconEditOutline16,
+  IconTrashOutline16,
+  Tooltip,
+  writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import { formatLatencySeconds, formatMessageClock, formatRunDuration, formatTokensPerSecond } from './message-chrome.ts'
@@ -23,10 +26,14 @@ export interface MessageIconActionsProps {
   tokensPerSecond?: number | undefined
   /** Clock before icons (user) or after (assistant). */
   clock: 'start' | 'end'
+  /** Edit and re-roll prompt; omission hides the edit action. */
+  onEdit?: ((text: string) => void) | undefined
   /** Fork the session at this message; omission hides the branch action. */
   onBranch?: (() => void) | undefined
   /** The message is not a completed transcript tail, so branch stays visible but unavailable. */
   branchUnavailable?: boolean | undefined
+  /** Delete this turn / truncate from this point. */
+  onDelete?: (() => void) | undefined
   /** Parent layout class composed onto the actions row. */
   className?: string | undefined
   /**
@@ -44,7 +51,7 @@ export interface MessageIconActionsProps {
  * @returns The actions row element.
  */
 export function MessageIconActions({
-  text, time, runMs, ttftMs, tokensPerSecond, clock, onBranch, branchUnavailable = false, className,
+  text, time, runMs, ttftMs, tokensPerSecond, clock, onEdit, onBranch, branchUnavailable = false, onDelete, className,
   extraActions, t,
 }: MessageIconActionsProps) {
   const day = useCalendarDay()
@@ -115,6 +122,18 @@ export function MessageIconActions({
           {copied ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
         </button>
       </Tooltip>
+      {onEdit !== undefined && (
+        <Tooltip label={t('message.edit')} side="bottom">
+          <button
+            type="button"
+            className={css.action}
+            aria-label={t('message.edit')}
+            onClick={() => { onEdit(text) }}
+          >
+            <IconEditOutline16 />
+          </button>
+        </Tooltip>
+      )}
       {extraActions}
       {onBranch !== undefined && (
         <Tooltip label={branchUnavailable ? t('message.branchUnavailable') : t('message.branch')} side="bottom">
@@ -129,6 +148,18 @@ export function MessageIconActions({
             onClick={branchUnavailable ? undefined : onBranch}
           >
             <IconBranchOutline16 />
+          </button>
+        </Tooltip>
+      )}
+      {onDelete !== undefined && (
+        <Tooltip label={t('message.delete')} side="bottom">
+          <button
+            type="button"
+            className={css.action}
+            aria-label={t('message.delete')}
+            onClick={onDelete}
+          >
+            <IconTrashOutline16 />
           </button>
         </Tooltip>
       )}

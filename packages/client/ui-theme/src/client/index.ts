@@ -2,10 +2,10 @@
  * Browser theme registry over the `--dsw-*` token stylesheets. The service
  * owns the live theme preference (light/dark/system), resolves `system` through
  * `prefers-color-scheme`, and publishes immutable snapshots; it never touches
- * the DOM — ui-layout's presenter consumes the resolved snapshot. The Host
+ * the DOM â€” ui-layout's presenter consumes the resolved snapshot. The Host
  * settings scope loads and stores the preference in the user-settings
  * document. The plugin also registers the Appearance preference row into the
- * settings General section — the theme feature owns its own settings surface.
+ * settings General section â€” the theme feature owns its own settings surface.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
@@ -20,6 +20,7 @@ import { AppearanceRow } from './AppearanceRow.tsx'
 import { createAppearanceRowStore } from './settings-store.ts'
 import { installThemeStyles } from './styles.ts'
 import { en, zh, type ThemeKey } from './locales.ts'
+import { rolloutSettingsTheme } from './locales.rollout.ts'
 import {
   DEFAULT_PREFERENCE, isThemePreference, THEME_PREFERENCE_FIELD, THEME_SETTINGS_NAMESPACE,
   type ThemePreference, type ThemeSettings,
@@ -64,7 +65,7 @@ export interface ThemeDefinition {
   id: string
   /**
    * Which base palette this theme builds on. The presenter switches
-   * `body[data-ds-dark-theme]` from this field — never from the id.
+   * `body[data-ds-dark-theme]` from this field â€” never from the id.
    */
   colorScheme: 'light' | 'dark'
   /** Alias-layer overrides applied as inline CSS variables over the base palette. */
@@ -215,7 +216,7 @@ export class ThemeRuntime {
   }
 
   /**
-   * Switch the theme preference — the only user preference write entry.
+   * Switch the theme preference â€” the only user preference write entry.
    * Built-in preferences are written through the settings scope and every
    * accepted value emits `theme/change`.
    * @param id - a registered theme id or `system`; unknown ids throw.
@@ -264,16 +265,16 @@ export class ThemeRuntime {
   }
 
   /**
-   * Stack a token override layer on top of the active theme — the token-level
+   * Stack a token override layer on top of the active theme â€” the token-level
    * analogue of slot shading: the base theme stays untouched, layers compose
    * in seq order with later layers winning per-token, and removing a layer
    * restores whatever it covered. Calling again with the same source replaces
    * that source's whole layer and restacks it on top (effect re-registration
    * semantics). Emits `theme/change` with the recomposed snapshot.
    * @param source - layer identity; one layer per source (dynamic packages
-   * pass their package id — the façade pins it, so it also names the layer's
+   * pass their package id â€” the faÃ§ade pins it, so it also names the layer's
    * origin for inspection).
-   * @param tokens - token-name → `{ light, dark }` value pairs. Validated at
+   * @param tokens - token-name â†’ `{ light, dark }` value pairs. Validated at
    * runtime (model-authored callers reach this boundary with untyped JS);
    * a bare string value throws a teaching error.
    * @returns disposer removing exactly the layer this call created; a no-op
@@ -333,7 +334,7 @@ export class ThemeRuntime {
 
 /**
  * Runtime shape check for one override layer (model-authored callers pass
- * untyped JS through the dynamic-package façade, so the static type cannot
+ * untyped JS through the dynamic-package faÃ§ade, so the static type cannot
  * enforce the pair shape there). Returns a defensive per-token copy so later
  * caller mutation cannot reach the stored layer.
  */
@@ -342,7 +343,7 @@ function validateOverrides(source: string, tokens: ThemeTokenOverrides): ThemeTo
   for (const [name, value] of Object.entries<unknown>(tokens)) {
     if (typeof value === 'string') {
       throw new TypeError(
-        `theme override "${name}" from "${source}" is a bare string — pass { light: ${JSON.stringify(value)}, dark: ${JSON.stringify(value)} } `
+        `theme override "${name}" from "${source}" is a bare string â€” pass { light: ${JSON.stringify(value)}, dark: ${JSON.stringify(value)} } `
         + '(repeat the value when it is the same in both palettes); a single value goes illegible when the user switches color scheme',
       )
     }
@@ -350,7 +351,7 @@ function validateOverrides(source: string, tokens: ThemeTokenOverrides): ThemeTo
       || typeof (value as { light?: unknown }).light !== 'string'
       || typeof (value as { dark?: unknown }).dark !== 'string') {
       throw new TypeError(
-        `theme override "${name}" from "${source}" must map to a { light, dark } pair of strings — one value per color scheme`,
+        `theme override "${name}" from "${source}" must map to a { light, dark } pair of strings â€” one value per color scheme`,
       )
     }
     const modes = value as ThemeTokenModes
@@ -388,7 +389,7 @@ export function apply(ctx: ClientContext): void {
   const theme = new ThemeRuntime(ctx, host)
   ctx.provide('theme', theme)
 
-  ctx.effect(() => ctx.locale.register(SETTINGS_NS, { zh, en }), 'ui-theme: settings row dictionaries')
+  ctx.effect(() => ctx.locale.register(SETTINGS_NS, { zh, en, ...rolloutSettingsTheme }), 'ui-theme: settings row dictionaries')
 
   const store = createAppearanceRowStore()
   let bound: BoundActions<typeof store> | undefined

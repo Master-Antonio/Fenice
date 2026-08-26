@@ -269,6 +269,14 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+/* Inline note under a field, e.g. the fallback-provider unknown-route warning. */
+.fieldHint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-state-warn-primary);
+}
+
 .linkButton {
   box-sizing: border-box;
   display: inline-flex;

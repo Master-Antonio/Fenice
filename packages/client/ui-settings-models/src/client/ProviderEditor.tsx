@@ -63,6 +63,12 @@ export interface ProviderEditorProps {
   schema: SettingsSchemaOperations
   /** Path from the section root to this provider's profile. */
   settingsPath: readonly string[]
+  /**
+   * The page's OTHER configured route ids, for the fallback-provider datalist.
+   * Omission (single-card contexts) simply hides the suggestions; the warning
+   * then never fires, since there is no sibling set to check against.
+   */
+  siblingRoutes?: readonly string[]
   /** Wire faces for writes and for interrogating a provider endpoint. */
   api: Pick<IApiClient, 'settings' | 'credentials' | 'llm'>
   /** Section copy. */
@@ -171,6 +177,13 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
   const disabled = props.readOnly || busy
   const layout = layoutOf(namespace.ns)
   const keyRef = refFor(schema, namespace, settingsPath, props.provider)
+  // Fallback suggestions and the live unknown-route warning. The warning only
+  // has a sibling set to check against when the page supplies one.
+  const siblingRoutes = props.siblingRoutes ?? []
+  const fallbackRouteUnknown = siblingRoutes.length > 0
+    && typeof draft.fallbackProvider === 'string'
+    && draft.fallbackProvider !== ''
+    && !siblingRoutes.includes(draft.fallbackProvider)
   // The same schema read the create card makes, so the choices offered here
   // and there cannot drift apart: both come from the adapter's own `Config`.
   // Only the pi-ai layout has a per-route protocol for the read to find, and
@@ -456,6 +469,85 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                     {protocols.map(choice => <option key={choice} value={choice}>{choice}</option>)}
                   </select>
                 </div>
+              )
+              : null}
+            {/* Fallback routing and the compaction budget are pi-ai PROFILE
+                fields: DeepSeek's adapter owns neither, so its card stays
+                scoped to what it can actually serve. */}
+            {family === 'pi-ai'
+              ? (
+                <>
+                  <div className={styles['field']}>
+                    <span className={styles['fieldLabel']}>{t('fallbackProvider')}</span>
+                    <input
+                      className={styles['input']}
+                      type="text"
+                      value={stringAt(draft, 'fallbackProvider') ?? ''}
+                      placeholder={t('fallbackProviderPlaceholder')}
+                      aria-label={t('fallbackProvider')}
+                      aria-invalid={fallbackRouteUnknown || undefined}
+                      aria-describedby={fallbackRouteUnknown ? 'dsh-fallback-route-warning' : undefined}
+                      disabled={disabled}
+                      list="dsh-provider-routes"
+                      onChange={(event) => {
+                        const next = event.target.value.trim()
+                        setField('fallbackProvider', next === '' ? undefined : next)
+                      }}
+                    />
+                    {siblingRoutes.length > 0
+                      ? (
+                        // Datalist of the page's other routes: a fallback must
+                        // name one of them, and resolution rejects anything else.
+                        <datalist id="dsh-provider-routes">
+                          {siblingRoutes.map(route => <option key={route} value={route} />)}
+                        </datalist>
+                      )
+                      : null}
+                    {fallbackRouteUnknown && (
+                      <p id="dsh-fallback-route-warning" className={styles['fieldHint']} role="note">
+                        {t('fallbackProviderUnknown')}
+                      </p>
+                    )}
+                  </div>
+                  <div className={styles['field']}>
+                    <span className={styles['fieldLabel']}>{t('fallbackModel')}</span>
+                    <input
+                      className={styles['input']}
+                      type="text"
+                      value={stringAt(draft, 'fallbackModel') ?? ''}
+                      placeholder={t('fallbackModelPlaceholder')}
+                      aria-label={t('fallbackModel')}
+                      disabled={disabled}
+                      onChange={(event) => {
+                        const next = event.target.value.trim()
+                        setField('fallbackModel', next === '' ? undefined : next)
+                      }}
+                    />
+                  </div>
+                  <div className={styles['field']}>
+                    <span className={styles['fieldLabel']}>{t('maxToolResultChars')}</span>
+                    <input
+                      className={styles['input']}
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={typeof schema.getPath(draft, ['maxToolResultChars']) === 'number'
+                        ? String(schema.getPath(draft, ['maxToolResultChars']))
+                        : ''}
+                      placeholder={t('maxToolResultCharsPlaceholder')}
+                      aria-label={t('maxToolResultChars')}
+                      disabled={disabled}
+                      onChange={(event) => {
+                        // The schema floor is 1; a non-positive or unparseable
+                        // value clears the field instead of queueing a doomed write.
+                        const val = event.target.value === '' ? undefined : Number.parseInt(event.target.value, 10)
+                        setDraft(current => (val === undefined || Number.isNaN(val) || val < 1
+                          ? schema.deletePath(current, ['maxToolResultChars'])
+                          : schema.setPath(current, ['maxToolResultChars'], val)))
+                      }}
+                    />
+                  </div>
+                </>
               )
               : null}
             {/* Both families edit the same rows through the same contract; only

@@ -1,6 +1,6 @@
 /**
  * Goal surface plugin, browser half: the GoalBar entry in the
- * conversation.input.dock strip. Projection-mode surface — the live goal
+ * conversation.input.dock strip. Projection-mode surface â€” the live goal
  * arrives through `useProjection('goal')` (seeded by the history tail page,
  * updated by session/projection frames), so this plugin owns no store, no
  * refresh chain, and no event listener. The inject face carries only the
@@ -22,6 +22,7 @@ import { GoalDock } from './GoalBar.tsx'
 import { GoalCommandInputView } from './GoalCommandInputView.tsx'
 import { goalCommandInputDefinition } from './goal-command-input.ts'
 import { en, zh, type GoalKey } from './locales.ts'
+import { rolloutGoal } from './locales.rollout.ts'
 
 export { GoalBar, GoalDock } from './GoalBar.tsx'
 export type { GoalActionResult, GoalBarActions } from './slots.ts'
@@ -46,7 +47,7 @@ export const inject = ['slots', 'sessions', 'remote', 'remote.goals', 'locale', 
  */
 export function apply(ctx: ClientContext): void {
   ctx.conversationEvents.register(goalCommandInputDefinition)
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-goal: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ...rolloutGoal }), 'ui-goal: dictionaries')
 
   ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
     name: 'conversation.chat.node',

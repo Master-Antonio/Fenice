@@ -11,6 +11,7 @@ import { InputTriggerService } from './service.ts'
 import type { MenuViewInjected } from './slots.ts'
 import { MenuView } from './MenuView.tsx'
 import { en, zh, type MenuKey } from './locales.ts'
+import { rolloutSlashMenu } from './locales.rollout.ts'
 
 export { InputTriggerService } from './service.ts'
 export { InputTriggerController } from './controller.ts'
@@ -54,7 +55,7 @@ export const inject = ['sessions', 'locale']
  */
 export function apply(ctx: ClientContext): void {
   ctx.plugin(InputTriggerService)
-  ctx.effect(() => ctx.locale.register(MENU_NS, { zh, en }), 'ui-input-trigger: menu dictionaries')
+  ctx.effect(() => ctx.locale.register(MENU_NS, { zh, en, ...rolloutSlashMenu }), 'ui-input-trigger: menu dictionaries')
   ctx.inject(['slots', 'inputTriggers', 'sessions'], (scope: ClientContext) => {
     const inputTriggers = scope.inputTriggers
     const sessions = scope.sessions
@@ -65,7 +66,7 @@ export function apply(ctx: ClientContext): void {
       locale: MENU_NS,
       inject: (sessionId): MenuViewInjected => {
         // Session-scoped slot: resolve this session's controller (the slot
-        // frame hands ids, not ctx — the registered id→ctx interchange).
+        // frame hands ids, not ctx â€” the registered idâ†’ctx interchange).
         const actx = sessions.scope(sessionId)
         if (actx === undefined) throw new Error(`ui-input-trigger: session "${String(sessionId)}" resolved no scope`)
         const controller = inputTriggers.sessionOf(actx)

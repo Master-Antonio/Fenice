@@ -787,6 +787,42 @@ describe('mapStopReason / mapUsage', () => {
     }))).toMatchObject({ kind: 'error', failure: { code: 'INVALID_REQUEST' } })
     expect(mapStopReason(assistant({
       stopReason: 'error',
+      errorMessage: 'The model rejected this request. It may not support the input you sent (e.g. images on a text-only model) or a parameter is invalid.',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'INVALID_REQUEST' } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: 'Provider returned error',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'SERVER' } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: 'Internal Server Error',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'SERVER' } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: 'Bad Gateway',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'SERVER' } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: 'Service Unavailable',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'SERVER' } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: 'gateway overloaded: hard concurrency limit reached',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'SERVER' } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: 'getaddrinfo ENOTFOUND api.openrouter.ai',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'TRANSPORT' } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: 'getaddrinfo EAI_AGAIN api.openrouter.ai',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'TRANSPORT' } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: 'UND_ERR_SOCKET socket disconnected',
+    }))).toMatchObject({ kind: 'error', failure: { code: 'TRANSPORT' } })
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
       errorMessage: 'vector length limit exceeded',
     }))).toMatchObject({ kind: 'error', failure: { code: 'PI_AI_ERROR' } })
   })

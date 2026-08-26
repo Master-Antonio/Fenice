@@ -36,6 +36,7 @@ import { ConversationRoot } from './skeleton/ConversationRoot.tsx'
 import { ConversationSession, ConversationSessionHeader } from './skeleton/ConversationSession.tsx'
 import { DetailsPanel } from './skeleton/DetailsPanel.tsx'
 import { en, NS, zh, type ConversationKey } from './locales.ts'
+import { rolloutConversation } from './locales.rollout.ts'
 import { registerConversationNodes } from './conversation-nodes/register.ts'
 import { registerChatNodeRenderers } from './chat/register-node-renderers.ts'
 import { CONVERSATION_SETTINGS_NAMESPACE, type ConversationSettings } from '../submission-settings.ts'
@@ -121,7 +122,7 @@ export function apply(ctx: Context): void {
   registerConversationNodes(ctx)
   registerChatNodeRenderers(ctx)
 
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-conversation: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ...rolloutConversation }), 'ui-conversation: dictionaries')
 
   // Registration-time text (the view tab label) reads through the bound
   // translate as a thunk, so it follows the active locale without
@@ -418,6 +419,24 @@ export function apply(ctx: Context): void {
         forkAt: (seq) => {
           sessions.fork({ sessionId, atSeq: seq, increaseTitle: true })
             .then((childId) => { sessions.open(childId) })
+            .catch(() => {
+              // Fork or child-rename failure keeps the source view untouched.
+            })
+        },
+        forkAtPrefill: (seq, prefill) => {
+          sessions.fork({ sessionId, atSeq: seq, increaseTitle: true })
+            .then((childId) => {
+              // Seed the child's composer BEFORE opening it: the session
+              // mount seeds from an empty input only, so a draft already in
+              // place wins and the mirror persists it like any typed text.
+              try {
+                inputHub.shell(childId).setDraft(prefill)
+              } catch {
+                // A child shell that cannot be addressed yet degrades to a
+                // plain branch — never blocks opening it.
+              }
+              sessions.open(childId)
+            })
             .catch(() => {
               // Fork or child-rename failure keeps the source view untouched.
             })

@@ -1,5 +1,5 @@
 /**
- * Permission preset plugin, browser half — a popupSelect DECORATION hung on
+ * Permission preset plugin, browser half â€” a popupSelect DECORATION hung on
  * the host `/permission` command: one flat list of presets, current value
  * marked active, a pick executes the switch. The decoration owns only the
  * bare invocation; the host command keeps its catalog row, the argued path
@@ -30,6 +30,7 @@ import type { PermissionRowInjected } from './PermissionRow.tsx'
 import {
   accessEn, accessZh, en, zh,
 } from './locales.ts'
+import { rolloutSettingsPermission } from './locales.rollout.ts'
 import {
   displayPermissionPreset, FULL_ACCESS_PRESET,
 } from './presentation.ts'
@@ -108,7 +109,7 @@ export function apply(ctx: ClientContext): void {
   const sessionFor = (session: ClientSessionContext): SessionFace | undefined =>
     sessions.binding(session.sessionId)?.session
 
-  ctx.effect(() => ctx.locale.register('settings.permission', { zh, en }), 'ui-permission: settings row dictionaries')
+  ctx.effect(() => ctx.locale.register('settings.permission', { zh, en, ...rolloutSettingsPermission }), 'ui-permission: settings row dictionaries')
 
   const connection = ctx.get('connection') as ConnectionHandle
   // The row follows the shared describe mirror, whose owning plugin already
@@ -137,7 +138,7 @@ export function apply(ctx: ClientContext): void {
     name: 'permission',
     // The picker exists exactly while the projection does: a permission-less
     // host serves no key and the bare invocation falls through to the host
-    // command (which is absent too — the line simply misses).
+    // command (which is absent too â€” the line simply misses).
     available: session => selectOf(sessionFor(session)) !== undefined,
     ui: {
       kind: 'popupSelect',
