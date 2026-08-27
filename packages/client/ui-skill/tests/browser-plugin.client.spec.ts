@@ -21,6 +21,8 @@ import { InputTriggerService } from '@deepseek-ai/dsh-client-ui-input-trigger/cl
 import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import type { ClientSessionContext, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { apply, inject } from '../src/client/index.ts'
+import { en, zh } from '../src/client/locales.ts'
+import { rolloutSkill } from '../src/client/locales.rollout.ts'
 import { SkillRow as SkillToolRow } from '../src/client/SkillRow.tsx'
 
 type SkillRow = { name: string; description: string; whenToUse?: string; modelInvocable?: boolean }
@@ -123,21 +125,11 @@ describe('apply', () => {
     expect(entry?.locale).toBe('skill')
     expect(entry?.component).toBe(SkillToolRow)
     expect(presentation.dictionaries).toEqual([{
-      namespace: 'skill', dictionaries: {
-        zh: {
-          'row.running': '正在加载 skill',
-          'row.failed': 'skill 加载失败',
-          'row.stopped': 'skill 加载已中止',
-          'row.instructions': '说明',
-          'menu.userOnly': '仅用户',
-        },
-        en: {
-          'row.running': 'Loading skill',
-          'row.failed': 'Skill load failed',
-          'row.stopped': 'Skill load stopped',
-          'row.instructions': 'Instructions',
-          'menu.userOnly': 'user-only',
-        },
+      namespace: 'skill',
+      dictionaries: {
+        zh,
+        en,
+        ...rolloutSkill,
       },
     }])
   })

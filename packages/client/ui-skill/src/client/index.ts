@@ -145,7 +145,7 @@ export function apply(ctx: ClientContext): void {
           name: skill.name,
           // The user-only marker rides the description (the menu's only
           // secondary text); `hint` is the claim-state ghost text, not a badge.
-          description: skill.modelInvocable ? skill.description : `${t('menu.userOnly')} Â· ${skill.description}`,
+          description: skill.modelInvocable ? skill.description : `${t('menu.userOnly')} · ${skill.description}`,
         }))
     },
     warm(session) {

@@ -108,7 +108,7 @@ function fileCandidate(candidate: FileReferenceCandidate, preserveQuote: boolean
     mention,
   }
   return [{
-    name: `${t(directory ? 'candidate.folder' : 'candidate.file')} Â· ${name}${directory ? '/' : ''}`,
+    name: `${t(directory ? 'candidate.folder' : 'candidate.file')} · ${name}${directory ? '/' : ''}`,
     description: candidate.path,
     section: t('section.files'),
     value: JSON.stringify(value),
@@ -117,14 +117,14 @@ function fileCandidate(candidate: FileReferenceCandidate, preserveQuote: boolean
 
 function sessionCandidate(candidate: SessionReferenceMentionCandidate, t: Translate) {
   const location = candidate.cwd ?? t('candidate.noCwd')
-  const description = `${candidate.label === candidate.sessionId ? '' : `${candidate.sessionId} Â· `}${location} Â· ${new Date(candidate.createdAt).toISOString()}`
+  const description = `${candidate.label === candidate.sessionId ? '' : `${candidate.sessionId} · `}${location} · ${new Date(candidate.createdAt).toISOString()}`
   const value: ReferenceCandidateValue = {
     kind: 'session',
     label: candidate.label,
     mention: candidate.mention,
   }
   return {
-    name: `${t('candidate.session')} Â· ${candidate.label}`,
+    name: `${t('candidate.session')} · ${candidate.label}`,
     description,
     section: t('section.sessions'),
     value: JSON.stringify(value),
