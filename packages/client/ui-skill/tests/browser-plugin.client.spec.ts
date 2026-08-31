@@ -15,10 +15,11 @@
  */
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
-import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { InputTriggerService } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
-import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
+import { RemoteError, TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
+import type { RemoteFailure } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ClientSessionContext, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { apply, inject } from '../src/client/index.ts'
 import { en, zh } from '../src/client/locales.ts'
@@ -28,12 +29,8 @@ import { SkillRow as SkillToolRow } from '../src/client/SkillRow.tsx'
 type SkillRow = { name: string; description: string; whenToUse?: string; modelInvocable?: boolean }
 type ListResult =
   | { ok: true; value: { skills: SkillRow[] } }
-  | { ok: false; error: { code: string; message: string; details: object } }
-type ListFn = (payload: object, signal?: AbortSignal) => Promise<{ result: ListResult }>
-type InvokeResult =
-  | { ok: true; value: { accepted: true } }
-  | { ok: false; error: { code: string; message: string; details: object } }
-type InvokeFn = (payload: object) => Promise<{ result: InvokeResult }>
+  | { ok: false; error: RemoteFailure }
+type ListFn = (payload: object, signal?: AbortSignal) => Promise<ListResult>
 
 interface PresentationCapture {
   slots: SlotRegistry
@@ -65,21 +62,19 @@ function providePresentation(ctx: Context): PresentationCapture {
 }
 
 /** Boot the plugin over fake slash/connection faces; returns the captured source and its ctx. */
-async function bench(list: ListFn, addressed?: SessionId, invoke?: InvokeFn) {
+async function bench(list: ListFn, addressed?: SessionId) {
   const ctx = new Context()
   let captured: InputTriggerSource | undefined
   ctx.provide('inputTriggers', { registerSource: (src: InputTriggerSource) => { captured = src; return () => {} } })
-  const defaultInvoke: InvokeFn = () => Promise.resolve({ result: { ok: true as const, value: { accepted: true as const } } })
-  ctx.provide('connection', { api: { skills: { list, invoke: invoke ?? defaultInvoke } } })
   ctx.provide('sessions', {
     subagentAddress: (id: SessionId) => id === addressed
       ? { parentSessionId: sid('parent'), childSessionId: id, mode: 'continuable' as const }
       : undefined,
   })
-  new TestRemote(ctx)
+  const remote = new TestRemote(ctx, { skills: { list } })
   providePresentation(ctx)
   await ctx.plugin({ inject: [...inject], apply }).await()
-  return { ctx, source: captured! }
+  return { ctx, source: captured!, remote }
 }
 
 const CATALOG: SkillRow[] = [
@@ -88,7 +83,7 @@ const CATALOG: SkillRow[] = [
   { name: 'deploy', description: 'deploy flow', modelInvocable: true },
 ]
 
-const listOk = (skills: SkillRow[]): ListFn => () => Promise.resolve({ result: { ok: true as const, value: { skills } } })
+const listOk = (skills: SkillRow[]): ListFn => () => Promise.resolve({ ok: true as const, value: { skills } })
 
 /** Counting fake: records payloads, resolves the shared catalog. */
 function countingList(skills: SkillRow[] = CATALOG) {
@@ -105,19 +100,18 @@ const sid = (id: string) => id as SessionId
 const proj = (id: string): ClientSessionContext => ({ sessionId: sid(id) })
 
 const req = (query: string, signal?: AbortSignal) =>
-  ({ query, position: 'leading' as const, signal: signal ?? new AbortController().signal })
+  ({ query, position: 'leading' as const, drilled: false, signal: signal ?? new AbortController().signal })
 
 describe('apply', () => {
   it('declares the services it binds', () => {
-    expect(inject).toEqual(['inputTriggers', 'connection', 'sessions', 'slots', 'locale', 'remote'])
+    expect(inject).toEqual(['inputTriggers', 'sessions', 'slots', 'locale', 'remote', 'remote.skills'])
   })
 
   it('registers the dedicated skill row and its locale dictionaries', async () => {
     const ctx = new Context()
     ctx.provide('inputTriggers', { registerSource: () => () => {} })
-    ctx.provide('connection', { api: { skills: { list: listOk(CATALOG) } } })
     ctx.provide('sessions', { subagentAddress: () => undefined })
-    new TestRemote(ctx)
+    new TestRemote(ctx, { skills: { list: listOk(CATALOG) } })
     const presentation = providePresentation(ctx)
     await ctx.plugin({ inject: [...inject], apply }).await()
     const entry = presentation.slots.entries('tool.call.toolview')[0]
@@ -139,8 +133,7 @@ describe('apply', () => {
     // InputTriggerService itself injects 'sessions'; the stub unblocks its fiber.
     ctx.provide('sessions', {})
     await ctx.plugin(InputTriggerService).await()
-    ctx.provide('connection', { api: { skills: { list: listOk(CATALOG) } } })
-    new TestRemote(ctx)
+    new TestRemote(ctx, { skills: { list: listOk(CATALOG) } })
     const presentation = providePresentation(ctx)
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -176,10 +169,10 @@ describe('candidates: sessionId addressing', () => {
 
   it('rejects on a failed result (the slash shell owns the menu-side fold)', async () => {
     const { source } = await bench(() => Promise.resolve({
-      result: { ok: false, error: { code: 'internal', message: 'boom', details: {} } },
+      ok: false, error: new RemoteError('gateway/internal', 'boom', {}),
     }))
     await expect(source.candidates(proj('s1'), req('co')))
-      .rejects.toThrow('skill.list failed: internal: boom')
+      .rejects.toThrow('skills/list failed: gateway/internal: boom')
   })
 
   it('does not fetch Agent-bound skills for an addressed child', async () => {
@@ -236,7 +229,7 @@ describe('catalog cache', () => {
     const { source } = await bench((payload) => {
       payloads.push(payload)
       return fail
-        ? Promise.resolve({ result: { ok: false as const, error: { code: 'internal', message: 'boom', details: {} } } })
+        ? Promise.resolve({ ok: false as const, error: new RemoteError('gateway/internal', 'boom', {}) })
         : listOk(CATALOG)(payload)
     })
     await expect(source.candidates(proj('s1'), req(''))).rejects.toThrow('boom')
@@ -261,13 +254,13 @@ describe('catalog cache', () => {
 
   it('agent-preset/selected clears only the recomposed session', async () => {
     const { list, payloads } = countingList()
-    const { ctx, source } = await bench(list)
+    const { source, remote } = await bench(list)
     await source.candidates(proj('s1'), req(''))
     await source.candidates(proj('s2'), req(''))
     expect(payloads).toHaveLength(2)
     // The catalog a preset supplies is the preset's; the other session's
     // composition did not change, so its cached catalog still holds.
-    ctx.remote.$dispatch('agent-preset/selected', [sid('s1'), 'minimal'])
+    remote.emit('agent-preset/selected', [sid('s1'), 'minimal'])
     await source.candidates(proj('s1'), req(''))
     await source.candidates(proj('s2'), req(''))
     expect(payloads).toHaveLength(3)
@@ -343,6 +336,7 @@ describe('pick lands plain text', () => {
       session: proj('s1'),
       position: 'leading',
       via: 'menu',
+      action: 'pick',
       span: { start: 0, end: 4, draftRev: 7 },
     })
     expect(outcome).toEqual({ text: '/commit-helper ' })

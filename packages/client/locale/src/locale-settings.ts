@@ -8,16 +8,17 @@ export const LOCALE_SETTINGS_NAMESPACE = 'locale'
 /** Field carrying an explicit locale selection; absence delegates to the browser. */
 export const LOCALE_PREFERENCE_FIELD = 'preference'
 
-/**
- * Locale identifiers shipped by the browser client. `zh`/`en` are REQUIRED in
- * every registered namespace (the bilingual-balance invariant); the rest are
- * rollout locales — optional per namespace, falling back to English per key,
- * so coverage can land surface by surface without blocking a release.
- */
-export const LOCALE_IDS = ['zh', 'en', 'it', 'de', 'es', 'fr', 'ja'] as const
+/** Accepted BCP 47-style language ids. */
+export const LOCALE_ID_PATTERN = /^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/u
 
-/** Shipped locale identifier. */
-export type LocaleId = typeof LOCALE_IDS[number]
+/** Locale identifiers shipped by the browser client. */
+export const LOCALE_IDS = ['zh', 'en'] as const
+
+/** Locale identifier shipped by the browser client. */
+export type BuiltInLocaleId = typeof LOCALE_IDS[number]
+
+/** Open locale identifier accepted from language-pack plugins. */
+export type LocaleId = string
 
 /** Locales beyond the required bilingual pair; namespaces may omit them. */
 export const ROLLOUT_LOCALE_IDS = ['it', 'de', 'es', 'fr', 'ja'] as const
@@ -33,5 +34,5 @@ export interface LocaleSettings {
 
 /** Durable locale schema; also the wire envelope the browser scope validates against. */
 export const LocaleSettingsSchema: z<LocaleSettings> = z.object({
-  [LOCALE_PREFERENCE_FIELD]: z.union([...LOCALE_IDS]).required(false),
+  [LOCALE_PREFERENCE_FIELD]: z.string().pattern(LOCALE_ID_PATTERN).required(false),
 })

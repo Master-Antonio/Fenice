@@ -1,7 +1,6 @@
-import type { HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 
-type OfficialBrandMarkProps = HeroBrandMarkOwnerProps & SidebarBrandMarkOwnerProps
+export type OfficialBrandMarkProps = SidebarBrandMarkOwnerProps & { className?: string }
 
 /**
  * Fenice mark: a compact rising-flame glyph drawn on the currentColor ink,

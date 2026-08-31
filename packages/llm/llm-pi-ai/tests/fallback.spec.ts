@@ -7,6 +7,7 @@ import { assemble } from './assemble.ts'
 import type { StreamChunk } from '@deepseek-ai/dsh-llm'
 import { closeMockServers, mockServer, textEvents } from './mock-server.ts'
 import { resolveProfiles } from '../src/config.ts'
+import { memoryAuth } from './auth-double.ts'
 
 /** A role-opening delta followed by one visible token, no terminal event. */
 const truncatedAfterTokenEvents = [
@@ -270,6 +271,7 @@ describe('PiAiAdapter fallback telemetry', () => {
         },
       }),
       resolveApiKey: () => Promise.resolve('k'),
+      auth: memoryAuth(),
       onFallback,
     })
     const chunks: StreamChunk[] = []
@@ -320,6 +322,7 @@ describe('PiAiAdapter Agent-Lab: circuit breaker + telemetry', () => {
         },
       }),
       resolveApiKey: () => Promise.resolve('k'),
+      auth: memoryAuth(),
       labFlags: () => ({
         circuitBreaker: true, cascadeMetrics: true, turnTelemetry: true,
         promptCacheStablePrefix: false, compactionPointer: false, tierRouter: false,

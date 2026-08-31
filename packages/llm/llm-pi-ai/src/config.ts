@@ -47,12 +47,16 @@ export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000
  * Default request-level bound on base64-encoded image payload. Every image in
  * history is re-encoded into every request body, so an unbounded conversation
  * eventually exceeds a provider or gateway request-size cap and the session
- * can never complete another request. The 20MiB default admits four images at
- * the attachment store's 3.5MiB raw-image default after base64 expansion and
- * reserves request capacity for system prompts, history, tools, and JSON.
+ * can never complete another request. The 20MiB default admits fifteen 1MiB
+ * request versions after base64 expansion and reserves request capacity for
+ * system prompts, history, tools, and JSON.
  * Deployments behind stricter gateways lower it per route.
  */
 export const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
+/** Default total-pixel budget preserves the complete 2048px normalized attachment. */
+export const DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
+/** Default raw encoded-byte target before inline base64 expansion; the smallest quality-ladder output is used when no quality fits. */
+export const DEFAULT_REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 
 /** Context capacity assumed for a model neither configuration nor the catalog sizes. */
 export const DEFAULT_CONTEXT_WINDOW = 262_144
@@ -170,6 +174,13 @@ export interface PiAiProviderProfile {
   fallbackProvider?: string
   /** Model id to use on fallback provider; defaults to current model id. */
   fallbackModel?: string
+  /** Total-pixel budget for each deterministic inline request version. */
+  requestImagePixelBudget?: number
+  /**
+   * Raw encoded-byte target for each deterministic inline request version;
+   * the smallest quality-ladder output is used when no quality fits.
+   */
+  requestImageMaxBytes?: number
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
   retryPolicy?: RetryPolicyConfig
 }
@@ -193,6 +204,10 @@ export interface ResolvedPiAiProviderProfile
   streamIdleTimeoutMs: number
   /** Positive request-level base64 image payload bound after defaulting. */
   maxRequestImageBytes: number
+  /** Positive total-pixel request-version budget after defaulting. */
+  requestImagePixelBudget: number
+  /** Positive raw request-version byte target after defaulting; the smallest quality-ladder output is used when no quality fits. */
+  requestImageMaxBytes: number
   /** Immutable retry policy captured with this provider route. */
   retryPolicy: ResolvedRetryPolicy
   /**
@@ -228,9 +243,10 @@ const thinkingBudgets = z.object({
 })
 
 /**
- * One `chat_template_kwargs` value. The `$var` member is pi-ai's placeholder
- * for a value dispatch fills from the request's thinking state, which is what
- * makes a chat-template gateway configurable without restating its template.
+ * One `chat_template_kwargs` or `chat_template_args` value. The `$var` member
+ * is pi-ai's placeholder for a value dispatch fills from the request's
+ * thinking state, which makes a template-driven gateway configurable without
+ * restating its template.
  */
 const chatTemplateKwarg: z<ChatTemplateKwargValue> = z.union([
   z.string(),
@@ -248,6 +264,7 @@ const compatProfile: z<PiAiCompatProfile> = z.object({
   supportsDeveloperRole: z.boolean(),
   supportsReasoningEffort: z.boolean(),
   supportsUsageInStreaming: z.boolean(),
+  supportsFinishReason: z.boolean(),
   maxTokensField: z.union(MAX_TOKENS_FIELDS),
   requiresToolResultName: z.boolean(),
   requiresAssistantAfterToolResult: z.boolean(),
@@ -255,6 +272,8 @@ const compatProfile: z<PiAiCompatProfile> = z.object({
   requiresReasoningContentOnAssistantMessages: z.boolean(),
   thinkingFormat: z.union(SUPPORTED_THINKING_FORMATS),
   chatTemplateKwargs: z.dict(chatTemplateKwarg),
+  chatTemplateArgs: z.dict(chatTemplateKwarg),
+  supportsThinkingTokenBudget: z.boolean(),
   supportsStrictMode: z.boolean(),
   cacheControlFormat: z.union(CACHE_CONTROL_FORMATS),
   supportsLongCacheRetention: z.boolean(),
@@ -328,6 +347,8 @@ const profile = z.object({
   maxToolResultChars: z.number().step(1).min(1).default(32_768),
   fallbackProvider: z.string(),
   fallbackModel: z.string(),
+  requestImagePixelBudget: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET),
+  requestImageMaxBytes: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_MAX_BYTES),
   retryPolicy: RetryPolicySchema,
 })
 
@@ -417,6 +438,14 @@ export function resolveProfiles(
     if (!Number.isInteger(maxRequestImageBytes) || maxRequestImageBytes <= 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" maxRequestImageBytes must be a positive integer`)
     }
+    const requestImagePixelBudget = source.requestImagePixelBudget ?? DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET
+    if (!Number.isSafeInteger(requestImagePixelBudget) || requestImagePixelBudget <= 0) {
+      throw new Error(`llm-pi-ai: provider "${provider}" requestImagePixelBudget must be a positive safe integer`)
+    }
+    const requestImageMaxBytes = source.requestImageMaxBytes ?? DEFAULT_REQUEST_IMAGE_MAX_BYTES
+    if (!Number.isSafeInteger(requestImageMaxBytes) || requestImageMaxBytes <= 0) {
+      throw new Error(`llm-pi-ai: provider "${provider}" requestImageMaxBytes must be a positive safe integer`)
+    }
     // Detached from the configuration object because pi-ai types `Model.input`
     // mutable. The schema's explicit default covers an absent key, so an empty
     // list here is always one someone typed — and unlike an entry's, nothing
@@ -450,6 +479,8 @@ export function resolveProfiles(
       streamIdleTimeoutMs,
       maxRequestImageBytes,
       maxToolResultChars,
+      requestImagePixelBudget,
+      requestImageMaxBytes,
       retryPolicy: resolveRetryPolicy(retryPolicy, `llm-pi-ai: provider "${provider}" retryPolicy`),
       ...rest.headers === undefined ? {} : { headers: { ...rest.headers } },
       ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },

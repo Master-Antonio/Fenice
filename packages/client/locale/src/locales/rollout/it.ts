@@ -4,14 +4,23 @@
  * this file; missing keys would fall back to English at lookup time.
  */
 import type { CommonKey } from '../index.ts'
+import { en } from '../en.ts'
 import type { SettingsLocaleKey } from '../settings.ts'
 
 export const common: Record<CommonKey, string> = {
+  ...en,
   'ok': 'OK',
   'cancel': 'Annulla',
   'close': 'Chiudi',
   'copy': 'Copia',
   'copied': 'Copiato',
+  'copy.failed': 'Copia non riuscita',
+  'copy.value': 'Copia valore',
+  'copy.json': 'Copia JSON',
+  'copy.path': 'Copia percorso proprietà',
+  'copy.prettyJson': 'Copia JSON formattato',
+  'copy.compactJson': 'Copia JSON compatto',
+  'copy.optionsHint': '{action}; clic destro per opzioni di copia',
   'retry': 'Riprova',
   'loading': 'Caricamento…',
   'load.failed': 'Caricamento non riuscito',

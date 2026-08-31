@@ -1,8 +1,9 @@
 /** Rollout dictionaries for the `trajectory` namespace. */
 import type { RolloutLocaleId } from '@deepseek-ai/dsh-client-locale'
-import type { TrajectoryKey } from './locales.ts'
+import { en, type TrajectoryKey } from './locales.ts'
 
 const it: Record<TrajectoryKey, string> = {
+  ...en,
   'view.trajectory': 'Traiettoria',
   'toolbar.aria': 'Barra strumenti traiettoria',
   'toolbar.duration': 'Durata',
@@ -17,9 +18,23 @@ const it: Record<TrajectoryKey, string> = {
   'toolbar.collapseCalls': 'Comprimi chiamate',
   'toolbar.search': 'Cerca nella traiettoria',
   'toolbar.searchPlaceholder': 'Cerca',
+  'status.failed': 'Non riuscito',
+  'status.pending': 'In attesa',
+  'status.completed': 'Completato',
+  'tab.summary': 'Riepilogo',
+  'tab.preview': 'Anteprima',
+  'tab.raw': 'Grezzo',
+  'tab.timing': 'Tempistiche',
+  'details.event': 'Dettagli evento',
+  'details.status': 'Stato',
+  'details.provider': 'Fornitore',
+  'details.model': 'Modello',
+  'details.error': 'Errore',
+  'details.retry': 'Riprova',
 }
 
 const de: Record<TrajectoryKey, string> = {
+  ...en,
   'view.trajectory': 'Verlauf',
   'toolbar.aria': 'Verlaufs-Symbolleiste',
   'toolbar.duration': 'Dauer',
@@ -37,6 +52,7 @@ const de: Record<TrajectoryKey, string> = {
 }
 
 const es: Record<TrajectoryKey, string> = {
+  ...en,
   'view.trajectory': 'Trayectoria',
   'toolbar.aria': 'Barra de herramientas de trayectoria',
   'toolbar.duration': 'Duración',
@@ -54,6 +70,7 @@ const es: Record<TrajectoryKey, string> = {
 }
 
 const fr: Record<TrajectoryKey, string> = {
+  ...en,
   'view.trajectory': 'Trajectoire',
   'toolbar.aria': 'Barre d’outils de trajectoire',
   'toolbar.duration': 'Durée',
@@ -71,6 +88,7 @@ const fr: Record<TrajectoryKey, string> = {
 }
 
 const ja: Record<TrajectoryKey, string> = {
+  ...en,
   'view.trajectory': '軌跡',
   'toolbar.aria': '軌跡ツールバー',
   'toolbar.duration': '期間',

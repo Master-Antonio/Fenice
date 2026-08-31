@@ -9,10 +9,9 @@
  */
 
 import z from '@deepseek-ai/schemastery'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 
 /** Settings namespace owned by the Agent-Lab experiments. */
-export const AGENT_LAB_NAMESPACE = settingsNamespace('agent-lab')
+export const AGENT_LAB_NAMESPACE = 'agent-lab'
 
 /** Every experiment switch, resolved to a concrete boolean. */
 export interface AgentLabFlags {

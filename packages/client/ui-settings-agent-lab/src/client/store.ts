@@ -1,7 +1,6 @@
 /** Live mirror of the durable `agent-lab` flags for the Settings section UI. */
 
-import { defineStore } from '@deepseek-ai/dsh-client-runtime/client'
-import type { EngineStoreHandle } from '@deepseek-ai/dsh-client-runtime/client'
+import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 
 export interface AgentLabState {
   /** Current flag values as persisted in the settings document (absent = default). */

@@ -87,7 +87,7 @@ describe('LocaleRuntime', () => {
   it('rejects duplicate (ns, locale) and disposer only removes its own dict', () => {
     const { svc } = make()
     const dispose = svc.register('ns', 'zh', { k: 'v1' })
-    expect(() => svc.register('ns', 'zh', { k: 'v2' })).toThrow('already has locale')
+    expect(() => svc.register('ns', 'ZH', { k: 'v2' })).toThrow('already has locale')
     dispose()
     const t = svc.bind('ns')
     expect(t('k')).toBe('k')
@@ -182,6 +182,112 @@ describe('LocaleRuntime', () => {
     expect(() => { svc.setLocale('pt') }).toThrow('not registered')
   })
 
+  it('registers an external locale for selection, translation, persistence, and reversible disposal', () => {
+    const host = stubSettingsScope<LocaleSettings>()
+    const { svc, events } = make(host)
+    svc.register('ns', 'en', { hello: 'Hello' })
+    svc.register('ns', 'KO', { hello: '안녕하세요' })
+    const dispose = svc.addLanguage({ id: 'ko', label: '한국어', fallback: 'EN' })
+    expect(svc.getLocale().locales).toContainEqual({ id: 'ko', label: '한국어', fallback: 'en' })
+
+    svc.setLocale('KO')
+    expect(svc.getLocale().active).toBe('ko')
+    expect(svc.bind('ns')('hello')).toBe('안녕하세요')
+    expect(host.set).toHaveBeenCalledWith('preference', 'ko')
+
+    dispose()
+    expect(svc.getLocale().active).toBe('zh')
+    expect(svc.getLocale().locales.map(locale => locale.id)).toEqual(['zh', 'en', 'it', 'de', 'es', 'fr', 'ja'])
+    expect(svc.bind('ns')('hello')).toBe('Hello')
+    const revision = svc.getLocale().revision
+    dispose()
+    expect(svc.getLocale().revision).toBe(revision)
+    expect(events.map(snapshot => snapshot.active)).toEqual(['ko', 'zh'])
+  })
+
+  it('uses fallback copy until a language dictionary registers later', () => {
+    const { svc } = make()
+    svc.register('ns', 'en', { hello: 'Hello' })
+    svc.addLanguage({ id: 'ko', label: '한국어', fallback: 'en' })
+    svc.setLocale('ko')
+    expect(svc.bind('ns')('hello')).toBe('Hello')
+
+    const revision = svc.getLocale().revision
+    svc.register('ns', 'ko', { hello: '안녕하세요' })
+    expect(svc.getLocale().revision).toBe(revision + 1)
+    expect(svc.bind('ns')('hello')).toBe('안녕하세요')
+  })
+
+  it('rejects duplicate and malformed locale definitions', () => {
+    const { svc } = make()
+    expect(() => svc.addLanguage({ id: 'EN', label: 'Other English', fallback: 'en' }))
+      .toThrow('already registered')
+    expect(() => svc.addLanguage({ id: 'bad locale', label: 'Bad', fallback: 'en' }))
+      .toThrow('not a BCP 47-style tag')
+    expect(() => svc.addLanguage({ id: '123', label: 'Numeric', fallback: 'en' }))
+      .toThrow('not a BCP 47-style tag')
+    expect(() => svc.addLanguage({ id: 'pt', label: '   ', fallback: 'en' }))
+      .toThrow('label must not be empty')
+    expect(() => svc.addLanguage({ id: 'pt', label: 'Português', fallback: 'bad tag' }))
+      .toThrow('locale fallback')
+    expect(() => svc.addLanguage({ id: 'pt', label: 'Português', fallback: 'nl' }))
+      .toThrow('not registered')
+  })
+
+  it('rejects malformed locale ids before dictionary registration', () => {
+    const { svc } = make()
+    expect(() => svc.register('ns', 'bad locale', { hello: 'Bad' }))
+      .toThrow('not a BCP 47-style tag')
+    expect(() => svc.register('ns', '123', { hello: 'Numeric' }))
+      .toThrow('not a BCP 47-style tag')
+    expect(svc.bind('ns')('hello')).toBe('hello')
+  })
+
+  it('walks each language fallback recursively for every dictionary key', () => {
+    const { svc } = make()
+    svc.register('ns', 'en', { base: 'English', shared: 'English shared' })
+    svc.register('ns', 'pt', { shared: 'Português' })
+    svc.register('ns', 'pt-BR', { local: 'Brasil' })
+    svc.register('common', 'en', { commonBase: 'Common English' })
+    svc.register('common', 'pt', { commonShared: 'Common Portuguese' })
+    svc.addLanguage({ id: 'pt', label: 'Português', fallback: 'en' })
+    svc.addLanguage({ id: 'pt-BR', label: 'Português (Brasil)', fallback: 'pt' })
+    svc.setLocale('pt-BR')
+    const t = svc.bind('ns')
+    expect(t('local')).toBe('Brasil')
+    expect(t('shared')).toBe('Português')
+    expect(t('base')).toBe('English')
+    expect(t('commonShared')).toBe('Common Portuguese')
+    expect(t('commonBase')).toBe('Common English')
+  })
+
+  it('rejects a fallback cycle exposed by re-registering an unloaded language', () => {
+    const { svc } = make()
+    svc.register('ns', 'en', { base: 'English' })
+    const removePt = svc.addLanguage({ id: 'pt', label: 'Português', fallback: 'en' })
+    svc.addLanguage({ id: 'pt-BR', label: 'Português (Brasil)', fallback: 'pt' })
+    svc.setLocale('pt-BR')
+    removePt()
+    expect(svc.bind('ns')('base')).toBe('English')
+    expect(() => svc.addLanguage({ id: 'nl', label: 'Nederlands', fallback: 'pt-BR' }))
+      .toThrow('locale fallback "pt" is not registered')
+    expect(() => svc.addLanguage({ id: 'pt', label: 'Português', fallback: 'pt-BR' }))
+      .toThrow('fallback cycle')
+    expect(svc.getLocale().locales.map(locale => locale.id)).toEqual(['zh', 'en', 'it', 'de', 'es', 'fr', 'ja', 'pt-BR'])
+  })
+
+  it('adopts a saved external locale when its definition registers later', () => {
+    const host = stubSettingsScope<LocaleSettings>()
+    const { svc, events } = make(host)
+    host.publish({ status: 'ready', value: { preference: 'ko' }, revision: 1, writable: true })
+    expect(svc.getLocale().active).toBe('zh')
+
+    svc.addLanguage({ id: 'ko', label: '한국어', fallback: 'en' })
+    expect(svc.getLocale().active).toBe('ko')
+    expect(events.map(snapshot => snapshot.active)).toEqual(['ko'])
+    expect(host.set).not.toHaveBeenCalled()
+  })
+
   it('adopts a Host preference over the browser language without writing it back', () => {
     const host = stubSettingsScope<LocaleSettings>()
     const { svc, events } = make(host)
@@ -231,8 +337,18 @@ describe('LocaleRuntime', () => {
     expect(make().svc.getLocale().active).toBe('en')
     // No shipped language anywhere in the browser's preferences: en is the
     // product default rather than an arbitrary near-match.
-    stubLanguages('pt-BR', 'ko')
+    stubLanguages('pl', 'ru')
     expect(make().svc.getLocale().active).toBe('en')
+  })
+
+  it('re-evaluates browser languages as external definitions register and unload', () => {
+    stubLanguages('pt-BR', 'zh-CN')
+    const { svc } = make()
+    expect(svc.getLocale().active).toBe('zh')
+    const dispose = svc.addLanguage({ id: 'pt-BR', label: 'Português (Brasil)', fallback: 'en' })
+    expect(svc.getLocale().active).toBe('pt-BR')
+    dispose()
+    expect(svc.getLocale().active).toBe('zh')
   })
 
   it('runs outside a browser (node boots): the default decides and the machine language does not', () => {
@@ -275,16 +391,16 @@ describe('LocaleRuntime', () => {
     expect(svc.bind('ns2')('onlyZh')).toBe('onlyZh')
   })
 
-  it('exposes the shipped locales with self-described labels', () => {
+  it('starts with the shipped locales and their fallback relation', () => {
     const { svc } = make()
     expect(svc.getLocale().locales).toEqual([
-      { id: 'zh', label: '中文' },
+      { id: 'zh', label: '中文', fallback: 'en' },
       { id: 'en', label: 'English' },
-      { id: 'it', label: 'Italiano' },
-      { id: 'de', label: 'Deutsch' },
-      { id: 'es', label: 'Español' },
-      { id: 'fr', label: 'Français' },
-      { id: 'ja', label: '日本語' },
+      { id: 'it', label: 'Italiano', fallback: 'en' },
+      { id: 'de', label: 'Deutsch', fallback: 'en' },
+      { id: 'es', label: 'Español', fallback: 'en' },
+      { id: 'fr', label: 'Français', fallback: 'en' },
+      { id: 'ja', label: '日本語', fallback: 'en' },
     ])
   })
 })

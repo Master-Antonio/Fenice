@@ -1,8 +1,10 @@
 /** Agent-Lab experimental switches registered into Web Settings. */
 
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { AgentLabSection, type AgentLabSectionInjected } from './AgentLabSection.tsx'
 import { createAgentLabStore } from './store.ts'
 import { rolloutAgentLab } from './locales.rollout.ts'

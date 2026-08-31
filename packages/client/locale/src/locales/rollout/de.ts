@@ -4,9 +4,11 @@
  * this file; missing keys would fall back to English at lookup time.
  */
 import type { CommonKey } from '../index.ts'
+import { en } from '../en.ts'
 import type { SettingsLocaleKey } from '../settings.ts'
 
 export const common: Record<CommonKey, string> = {
+  ...en,
   'ok': 'OK',
   'cancel': 'Abbrechen',
   'close': 'Schließen',

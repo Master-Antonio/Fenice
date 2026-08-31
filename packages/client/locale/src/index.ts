@@ -1,13 +1,13 @@
 /** Host registration for the browser locale preference. */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-settings'
 import { LOCALE_SETTINGS_NAMESPACE, LocaleSettingsSchema } from './locale-settings.ts'
 
 export {
   LOCALE_IDS, LOCALE_PREFERENCE_FIELD, LOCALE_SETTINGS_NAMESPACE,
   ROLLOUT_LOCALE_IDS,
-  type LocaleId, type LocaleSettings, type RolloutLocaleId,
+  type BuiltInLocaleId, type LocaleId, type LocaleSettings, type RolloutLocaleId,
 } from './locale-settings.ts'
 
 /**
@@ -17,7 +17,7 @@ export {
 export function apply(ctx: Context): void {
   ctx.inject(['settings'], (settingsCtx) => {
     settingsCtx.settings.register(
-      settingsNamespace(LOCALE_SETTINGS_NAMESPACE),
+      LOCALE_SETTINGS_NAMESPACE,
       LocaleSettingsSchema,
     )
   })
