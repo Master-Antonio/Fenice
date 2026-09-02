@@ -18,6 +18,8 @@ import type {
   SessionProjectionBaseline,
   SessionSelectModelRequest,
   SessionSelectModelValue,
+  SessionTruncateRequest,
+  SessionTruncateValue,
 } from '@deepseek-ai/dsh-api-session-controller/types'
 import type { WorkspaceRemote } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { WorkspaceFollowFrame } from '@deepseek-ai/dsh-api-workspace-controller/types'
@@ -190,6 +192,9 @@ export class FakeApiClient {
   onWorkspaceArchiveSession: (payload: unknown) => Promise<RemoteResult<{ archivedSessionIds: SessionId[] }>> =
     payload => Promise.resolve(ok({ archivedSessionIds: [(payload as { sessionId: SessionId }).sessionId] }))
 
+  onSessionTruncate: (payload: SessionTruncateRequest) => Promise<RemoteResult<SessionTruncateValue>> =
+    payload => Promise.resolve(ok({ sessionId: payload.sessionId, truncatedAtSeq: 0 }))
+
   /** Remote namespaces bound to this fake's programmable unary slots and stream pumps. */
   sessionRemotes(): RuntimeRemotes {
     return {
@@ -202,6 +207,7 @@ export class FakeApiClient {
       session: {
         canOpenWorkspacePath: () => Promise.resolve(ok(true)),
         list: payload => this.record('session.list', payload, this.onList(payload)),
+        truncate: payload => this.record('session.truncate', payload, this.onSessionTruncate(payload)),
         modelCatalog: () => Promise.resolve({
           ok: true,
           value: {

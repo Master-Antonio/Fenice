@@ -64,7 +64,7 @@ function waitForIdle(ctx: Context, agent: Agent): Promise<void> {
 }
 
 function events(agent: Agent): SessionEvent[] {
-  return [...agent.session.events]
+  return [...agent.session.snapshotEvents()]
 }
 
 describe('selfHealingLoop in agent loop', () => {
@@ -86,7 +86,7 @@ describe('selfHealingLoop in agent loop', () => {
       },
     }))
 
-    const agent = ctx.agentLoop.create(SessionId('a-no-heal'), {
+    const agent = await ctx.agentLoop.create(SessionId('a-no-heal'), {
       provider: 'mock',
       model: 'mock',
       flags: { selfHealingLoop: false },
@@ -129,7 +129,7 @@ describe('selfHealingLoop in agent loop', () => {
       },
     }))
 
-    const agent = ctx.agentLoop.create(SessionId('a-heal-success'), {
+    const agent = await ctx.agentLoop.create(SessionId('a-heal-success'), {
       provider: 'mock',
       model: 'mock',
       flags: { selfHealingLoop: true },
@@ -176,7 +176,7 @@ describe('selfHealingLoop in agent loop', () => {
       },
     }))
 
-    const agent = ctx.agentLoop.create(SessionId('a-heal-bounded'), {
+    const agent = await ctx.agentLoop.create(SessionId('a-heal-bounded'), {
       provider: 'mock',
       model: 'mock',
       flags: { selfHealingLoop: true },
@@ -224,7 +224,7 @@ describe('selfHealingLoop in agent loop', () => {
       },
     }))
 
-    const agent = ctx.agentLoop.create(SessionId('a-lab-settings'), {
+    const agent = await ctx.agentLoop.create(SessionId('a-lab-settings'), {
       provider: 'mock',
       model: 'mock',
     })

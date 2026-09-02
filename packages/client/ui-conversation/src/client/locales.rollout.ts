@@ -43,7 +43,6 @@ const it: Record<ConversationKey, string> = {
   'image.tooManyPixels': "La risoluzione dell'immagine è troppo alta; comprimila e riprova",
   'image.dimensionTooLarge': "I lati dell'immagine devono essere al massimo {size}px; ridimensionala e riprova",
   'image.modelUnsupported': 'Il modello corrente non supporta le immagini; passa a un modello che le supporta',
-  'image.subagentUnsupported': 'Le sessioni dei subagenti non supportano ancora le immagini',
   'image.sendFailed': 'Invio delle immagini non riuscito ({reason}); riaggiungile e riprova',
   'context.aria': '{percent} del contesto utilizzato',
   'context.used': 'del contesto utilizzato',

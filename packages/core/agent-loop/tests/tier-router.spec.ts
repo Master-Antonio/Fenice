@@ -84,7 +84,7 @@ describe('ReactLoopAgent tierRouter dynamic reasoning routing', () => {
     })
     const ctx = await harness(adapter)
 
-    const agent = ctx.agentLoop.create(SessionId('a-tier-agent'), {
+    const agent = await ctx.agentLoop.create(SessionId('a-tier-agent'), {
       provider: 'mock',
       model: 'mock',
       flags: { tierRouter: true },
@@ -115,7 +115,7 @@ describe('ReactLoopAgent tierRouter dynamic reasoning routing', () => {
     })
     const ctx = await harness(adapter)
 
-    const agent = ctx.agentLoop.create(SessionId('a-no-tier-agent'), {
+    const agent = await ctx.agentLoop.create(SessionId('a-no-tier-agent'), {
       provider: 'mock',
       model: 'mock',
       flags: { tierRouter: false },

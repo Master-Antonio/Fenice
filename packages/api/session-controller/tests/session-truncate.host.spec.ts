@@ -15,13 +15,31 @@ import {
 
 const sid = (id: string): SessionId => id as SessionId
 
-async function composed(workspaces: readonly Workspace[] = []): Promise<Context> {
+async function composed(
+  workspaces: readonly Workspace[] = [],
+  hooks: { onTruncate?: (id: SessionId, fromSeq: number) => void } = {},
+): Promise<Context> {
   const ctx = new Context()
   await ctx.plugin(SessionStore)
   await ctx.plugin(SystemPrompt, { persona: '' })
   await ctx.plugin(AgentRegistry)
   installSessionReadTestServices(ctx)
   ctx.provide('workspaceRegistry', { list: () => workspaces } as never)
+  // Durable-truncate recorder: the command requires a backend implementing
+  // the optional truncateFrom seam and refuses loudly without one. `stat`
+  // reports every cold session as absent so not-found handling stays live.
+  const stat = (): Promise<undefined> => Promise.resolve(undefined)
+  if (hooks.onTruncate === undefined) {
+    ctx.provide('sessionPersistence', { stat } as never)
+  } else {
+    ctx.provide('sessionPersistence', {
+      stat,
+      truncateFrom: (id: SessionId, fromSeq: number) => {
+        hooks.onTruncate?.(id, fromSeq)
+        return Promise.resolve()
+      },
+    } as never)
+  }
   ctx.agents.setFactory({
     createAgent: async (ownerCtx: Context, options: CreateAgentOptions): Promise<AgentHandle> => {
       const session = ctx.sessions.create(options.sessionId, {
@@ -76,9 +94,10 @@ describe('sessions.truncate', () => {
   })
 
   it('truncates to a specific turnIndex when sessionTruncate is enabled', async () => {
-    const ctx = await composed()
+    const truncated: Array<{ id: SessionId; fromSeq: number }> = []
+    const ctx = await composed([], { onTruncate: (id, fromSeq) => { truncated.push({ id, fromSeq }) } })
     const session = liveAgent(ctx, 'session-truncate-turn', 3)
-    expect(session.events.length).toBe(9) // 3 turns * 3 events each
+    expect(session.snapshotEvents().length).toBe(9) // 3 turns * 3 events each
 
     const res = await remote(ctx).truncate({
       sessionId: session.id,
@@ -90,11 +109,13 @@ describe('sessions.truncate', () => {
       expect(res.value.sessionId).toBe(session.id)
       expect(res.value.truncatedAtSeq).toBe(3) // turn 1 starts at seq 3
     }
+    expect(truncated).toEqual([{ id: session.id, fromSeq: 3 }])
     await ctx.fiber.dispose()
   })
 
   it('truncates to a specific atSeq when sessionTruncate is enabled', async () => {
-    const ctx = await composed()
+    const truncated: Array<{ id: SessionId; fromSeq: number }> = []
+    const ctx = await composed([], { onTruncate: (id, fromSeq) => { truncated.push({ id, fromSeq }) } })
     const session = liveAgent(ctx, 'session-truncate-seq', 3)
 
     const res = await remote(ctx).truncate({
@@ -106,11 +127,13 @@ describe('sessions.truncate', () => {
     if (res.ok) {
       expect(res.value.truncatedAtSeq).toBe(6)
     }
+    expect(truncated).toEqual([{ id: session.id, fromSeq: 6 }])
     await ctx.fiber.dispose()
   })
 
   it('defaults to rewinding the last turn when atSeq/turnIndex is omitted', async () => {
-    const ctx = await composed()
+    const truncated: Array<{ id: SessionId; fromSeq: number }> = []
+    const ctx = await composed([], { onTruncate: (id, fromSeq) => { truncated.push({ id, fromSeq }) } })
     const session = liveAgent(ctx, 'session-truncate-default', 3)
 
     const res = await remote(ctx).truncate({
@@ -120,6 +143,22 @@ describe('sessions.truncate', () => {
     expect(res.ok).toBe(true)
     if (res.ok) {
       expect(res.value.truncatedAtSeq).toBe(6) // turn 3 starts at seq 6
+    }
+    expect(truncated).toEqual([{ id: session.id, fromSeq: 6 }])
+    await ctx.fiber.dispose()
+  })
+
+  it('rejects when the persistence backend cannot truncate', async () => {
+    const ctx = await composed() // stub backend without truncateFrom
+    const session = liveAgent(ctx, 'session-truncate-unsupported', 2)
+
+    const res = await remote(ctx).truncate({
+      sessionId: session.id,
+      flags: { sessionTruncate: true },
+    })
+    expect(res.ok).toBe(false)
+    if (!res.ok) {
+      expect(res.error.code).toBe('session/truncate-unavailable')
     }
     await ctx.fiber.dispose()
   })
