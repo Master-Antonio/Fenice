@@ -61,8 +61,10 @@ import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attac
 import { idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout'
 import type { AgentLabFlags } from './lab.ts'
 import type { ResolvedPiAiProviderProfile } from './config.ts'
-import { prefixFingerprint, stableToolOrder, toPiContext } from './context.ts'
+import { normalizeSystemPrompt, prefixFingerprint, stableToolOrder, toPiContext } from './context.ts'
+import { CompactionSpillStore, defaultCompactionSpillStore } from './spill.ts'
 import { classifyPiAiError, toStreamChunks } from './stream.ts'
+import { routeTier, type TaskComplexityReport } from './tier-router.ts'
 
 /** One resolution's frozen view: the profiles and the collection built from them. */
 interface PiAiSnapshot {
@@ -139,6 +141,10 @@ export interface PiAiAdapterOptions {
     latencyMs: number
     /** Stability fingerprint of the cache-relevant request prefix (when built). */
     prefixHash?: string
+    /** Task complexity tier resolved by tierRouter (when active). */
+    tier?: string
+    /** Numeric complexity score from 0 to 100 evaluated for this turn. */
+    tierScore?: number
   }) => void
   /**
    * Current Agent-Lab experiment switches, consulted live (per request, not
@@ -146,6 +152,10 @@ export interface PiAiAdapterOptions {
    * re-registration.
    */
   labFlags?: () => AgentLabFlags
+  /**
+   * Optional custom spill store for compaction pointers.
+   */
+  spillStore?: CompactionSpillStore
 }
 
 /** The two auth injectables a pi-ai collection is built with. */
@@ -373,8 +383,11 @@ export class PiAiAdapter extends LlmAdapter {
     this.breakerOpenedUntil.delete(route)
   }
 
+  readonly spillStore: CompactionSpillStore
+
   constructor(private readonly config: PiAiAdapterOptions) {
     super()
+    this.spillStore = config.spillStore ?? defaultCompactionSpillStore
   }
 
   /**
@@ -502,18 +515,29 @@ export class PiAiAdapter extends LlmAdapter {
     if (options.stop !== undefined) {
       throw new LlmError('llm-pi-ai does not support GenerateOptions.stop', 'UNSUPPORTED_OPTION')
     }
+    // Agent-Lab tierRouter: dynamically evaluate task complexity heuristics
+    // to route or recommend appropriate model tiers based on difficulty.
+    let routedOptions = options
+    let taskComplexityReport: TaskComplexityReport | undefined
+    if (this.labFlag('tierRouter')) {
+      const availableModels = snapshot.models.getModels(options.provider).map(m => m.id)
+      const routed = routeTier(options, availableModels)
+      routedOptions = routed.options
+      taskComplexityReport = routed.report
+    }
+
     // One capture per stream call, taken before any await: the profile, the
     // model descriptor, and the collection all come from the same immutable
     // snapshot, and the credential freezes with them. A configuration change
     // mid-request builds a separate snapshot, so this request finishes under
     // the one it started with and the next call picks up the new one.
-    const profile = this.profileOf(snapshot, options.provider)
-    const model = this.modelOf(snapshot, options.provider, options.model)
+    const profile = this.profileOf(snapshot, routedOptions.provider)
+    const model = this.modelOf(snapshot, routedOptions.provider, routedOptions.model)
     const reasoning = resolveReasoningLevel(
       model,
-      options.reasoningEffort ?? profile.reasoning,
+      routedOptions.reasoningEffort ?? profile.reasoning,
     )
-    const apiKey = await this.config.resolveApiKey(options.provider, profile)
+    const apiKey = await this.config.resolveApiKey(routedOptions.provider, profile)
 
     /**
      * Decide whether THIS failure justifies one cascade hop, returning the
@@ -531,16 +555,16 @@ export class PiAiAdapter extends LlmAdapter {
       if (!opts?.bypassEligibility && (code === undefined || !FALLBACK_ELIGIBLE_CODES.has(code))) return undefined
       if (visits.has(route)) return undefined
       if (!snapshot.profiles.has(route)) return undefined
-      if (options.signal?.aborted === true) return undefined
-      const fallbackModel = profile.fallbackModel ?? options.model
+      if (routedOptions.signal?.aborted === true) return undefined
+      const fallbackModel = profile.fallbackModel ?? routedOptions.model
       // Observability before delegation: a cascade hop is a latency- and
       // billing-relevant fact, so it reaches the deployment log even when the
       // fallback then succeeds. A throwing observer never breaks the stream.
       try {
         this.config.onFallback?.({
-          fromProvider: options.provider,
+          fromProvider: routedOptions.provider,
           toProvider: route,
-          model: options.model,
+          model: routedOptions.model,
           fallbackModel,
           code: code ?? 'UNKNOWN',
           message: failureMessage,
@@ -550,16 +574,16 @@ export class PiAiAdapter extends LlmAdapter {
       }
       visits.add(route)
       return this.streamRouted({
-        ...options,
+        ...routedOptions,
         provider: route,
         model: fallbackModel,
       }, snapshot, visits)
     }
 
     const consumer = new AbortController()
-    const upstream = options.signal === undefined
+    const upstream = routedOptions.signal === undefined
       ? consumer.signal
-      : AbortSignal.any([options.signal, consumer.signal])
+      : AbortSignal.any([routedOptions.signal, consumer.signal])
     const streamIdleTimeoutMs = profile.streamIdleTimeoutMs
     using watchdog = idleWatchdog(upstream, streamIdleTimeoutMs, 'LLM_STREAM_IDLE_TIMEOUT')
 
@@ -582,26 +606,30 @@ export class PiAiAdapter extends LlmAdapter {
       if (this.labFlag('turnTelemetry')) {
         try {
           this.config.onTurnTelemetry?.({
-            provider: options.provider,
-            model: options.model,
+            provider: routedOptions.provider,
+            model: routedOptions.model,
             finish,
             latencyMs: Date.now() - startedAt,
             ...(turnPrefixHash !== undefined ? { prefixHash: turnPrefixHash } : {}),
+            ...(taskComplexityReport !== undefined ? {
+              tier: taskComplexityReport.tier,
+              tierScore: taskComplexityReport.score,
+            } : {}),
             ...lastUsage,
           })
         } catch (_observerCrash) {
           // Contained: telemetry never breaks a stream.
         }
       }
-      if (finish === 'error' || finish === 'aborted' || finish === 'fallback') this.recordRouteFailure(options.provider)
-      else this.recordRouteSuccess(options.provider)
+      if (finish === 'error' || finish === 'aborted' || finish === 'fallback') this.recordRouteFailure(routedOptions.provider)
+      else this.recordRouteSuccess(routedOptions.provider)
     }
 
     // Agent-Lab circuit breaker: an open route skips its doomed attempt and
     // hops straight to the fallback (bypassing the eligibility list — the hop
     // is forced by the breaker, not by the failure classification).
-    if (this.breakerOpen(options.provider)) {
-      const forced = tryFallback('BREAKER_OPEN', `circuit breaker open for route "${options.provider}"`, { bypassEligibility: true })
+    if (this.breakerOpen(routedOptions.provider)) {
+      const forced = tryFallback('BREAKER_OPEN', `circuit breaker open for route "${routedOptions.provider}"`, { bypassEligibility: true })
       if (forced !== undefined) {
         emitTurn('fallback')
         yield* forced
@@ -621,9 +649,17 @@ export class PiAiAdapter extends LlmAdapter {
       const onReplayDegrade = (reason: string): void => {
         this.config.onReplayDegrade?.({ provider: options.provider, model: options.model, reason })
       }
+      const promptCacheStablePrefix = this.labFlag('promptCacheStablePrefix')
+      const compactionPointer = this.labFlag('compactionPointer')
+      const spillStore = this.spillStore
+
       let context: PiAiRequestContext = attachments === undefined
         // Sync shape: position 4 is the tool-result budget (see toPiContext).
-        ? toPiContext(options, undefined, onReplayDegrade, profile.maxToolResultChars)
+        ? toPiContext(options, undefined, onReplayDegrade, profile.maxToolResultChars, {
+          compactionPointer,
+          spillStore,
+          promptCacheStablePrefix,
+        })
         : await toPiContext({ ...options, signal: watchdog.signal }, {
           attachments,
           resolveImageAccess: ref => this.config.resolveImageAccess?.(attachments, ref),
@@ -633,15 +669,23 @@ export class PiAiAdapter extends LlmAdapter {
             maxBytes: profile.requestImageMaxBytes,
           },
           maxToolResultChars: profile.maxToolResultChars,
+          compactionPointer,
+          spillStore,
+          promptCacheStablePrefix,
         }, onReplayDegrade)
       // Agent-Lab promptCacheStablePrefix: a tool block whose ORDER drifts
       // between turns (plugin load order, config merges) silently invalidates
-      // provider prefix caches; sorting by name makes the head of the request
-      // a pure function of the tool SET.
-      if (this.labFlag('promptCacheStablePrefix') && context.tools !== undefined) {
-        const ordered = stableToolOrder(context.tools)
-        if (ordered.some((tool, i) => tool !== context.tools?.[i])) {
-          context = { ...context, tools: ordered }
+      // provider prefix caches; sorting by name and canonicalizing schemas makes
+      // the head of the request a pure function of the tool SET.
+      if (promptCacheStablePrefix) {
+        if (context.tools !== undefined && context.tools.length > 0) {
+          context = { ...context, tools: stableToolOrder(context.tools, true) }
+        }
+        if (context.systemPrompt !== undefined) {
+          const normalized = normalizeSystemPrompt(context.systemPrompt)
+          if (normalized !== undefined) {
+            context = { ...context, systemPrompt: normalized }
+          }
         }
       }
       turnPrefixHash = prefixFingerprint(context)

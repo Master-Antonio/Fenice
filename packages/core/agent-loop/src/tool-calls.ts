@@ -30,12 +30,30 @@ interface Slot {
   needsPost: boolean
 }
 
+/** Error detail captured from a failing tool call execution. */
+export interface ToolCallErrorDetail {
+  callId: string
+  toolName: string
+  errorMessage: string
+  isError: boolean
+  error?: unknown
+}
+
+/** Result of scheduling and executing tool calls. */
+export interface ExecuteToolCallsResult {
+  concluded: boolean
+  hasErrors: boolean
+  errors: ToolCallErrorDetail[]
+}
+
 /** One scheduler group outcome, including a drained cancellation. */
 interface GroupOutcome {
   consumed: number
   aborted: boolean
   /** Whether any committed result carried {@link ToolExecutionResult.concludesTurn}. */
   concluded: boolean
+  /** Errors captured from tool execution. */
+  errors: ToolCallErrorDetail[]
 }
 
 /**
@@ -64,7 +82,7 @@ export async function executeToolCalls(
   toolCalls: ToolCallBlock[],
   signal: AbortSignal,
   acceptContext: (context: UserMessage) => void,
-): Promise<{ concluded: boolean }> {
+): Promise<ExecuteToolCallsResult> {
   const agent = ctx.agents.requireInitiator()
   const { session } = agent
 
@@ -82,6 +100,7 @@ export async function executeToolCalls(
 
   let next = 0
   let concluded = false
+  const allErrors: ToolCallErrorDetail[] = []
   while (next < planned.length) {
     // Commit before classifying again so registry changes affect unstarted calls.
     // oxlint-disable-next-line typescript/no-non-null-assertion -- bounded by the loop condition
@@ -93,12 +112,13 @@ export async function executeToolCalls(
     )
     next += outcome.consumed
     concluded ||= outcome.concluded
+    allErrors.push(...outcome.errors)
     if (outcome.aborted) {
       for (const call of planned.slice(next)) appendSkippedToolCall(session, turn, step, call.block)
-      return { concluded }
+      return { concluded, hasErrors: allErrors.length > 0, errors: allErrors }
     }
   }
-  return { concluded }
+  return { concluded, hasErrors: allErrors.length > 0, errors: allErrors }
 }
 
 /** Parse model arguments, preserving invalid JSON as text and mapping empty input to `{}`. */
@@ -133,6 +153,7 @@ async function runGroup(
   const slots: (Slot | undefined)[] = group.map(() => undefined)
   // Started slots retain their `tool/call` seq so the result can cite it.
   const callSeqs: number[] = group.map(() => -1)
+  const groupErrors: ToolCallErrorDetail[] = []
   let nextToStart = 0
   let committed = 0
   let started = 0
@@ -154,6 +175,27 @@ async function runGroup(
         : ctx.tools[TOOL_RUNTIME_SCHEDULER].finish(slot.exec, slot.result)
       // oxlint-disable-next-line typescript/no-non-null-assertion -- bounded index
       appendToolResult(session, turn, step, call!.block, result, callSeqs[committed]!)
+
+      const isError = result.isError === true
+        || result.error !== undefined
+        || (result.meta !== undefined && result.meta !== null && typeof result.meta === 'object' && 'exitCode' in result.meta && typeof (result.meta as { exitCode?: unknown }).exitCode === 'number' && (result.meta as { exitCode: number }).exitCode !== 0)
+
+      if (isError && !aborted) {
+        const textContent = Array.isArray(result.content)
+          ? result.content.map(c => typeof c === 'object' && c !== null && 'text' in c ? String((c as { text: unknown }).text) : '').join('\n').trim()
+          : ''
+        const errorMessage = result.error?.message || textContent || 'Tool execution returned an error'
+        groupErrors.push({
+          // oxlint-disable-next-line typescript/no-non-null-assertion -- bounded index
+          callId: String(call!.block.id),
+          // oxlint-disable-next-line typescript/no-non-null-assertion -- bounded index
+          toolName: call!.block.name,
+          errorMessage,
+          isError: true,
+          error: result.error,
+        })
+      }
+
       for (const context of result.additionalContexts ?? []) acceptContext(context)
       concluded ||= result.concludesTurn === true
       committed++
@@ -239,11 +281,11 @@ async function runGroup(
     // Started calls and accepted context settle first; every remaining model
     // call then receives an ordered synthetic result before the turn aborts.
     for (const call of group.slice(started)) appendSkippedToolCall(session, turn, step, call.block)
-    return { consumed: group.length, aborted: true, concluded }
+    return { consumed: group.length, aborted: true, concluded, errors: groupErrors }
   }
   /* v8 ignore next -- unreachable: a non-aborted group commits every started call */
   if (committed !== started) throw new Error('tool-call scheduler: uncommitted settled calls')
-  return { consumed: started, aborted: false, concluded }
+  return { consumed: started, aborted: false, concluded, errors: groupErrors }
 }
 
 /** Append the durable call/result pair for a model call skipped after cancellation. */

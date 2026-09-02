@@ -17,6 +17,12 @@ import type {
 import type { Context as PiContext, ImageContent, Message as PiMessage, TextContent, Tool as PiTool } from '@earendil-works/pi-ai'
 import { toPiAssistant } from './replay.ts'
 import { DEFAULT_REQUEST_IMAGE_MAX_BYTES, DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET } from './config.ts'
+import {
+  CompactionSpillStore,
+  defaultCompactionSpillStore,
+} from './spill.ts'
+
+export { extractCompactionPointer, generateCompactionPointerId } from './spill.ts'
 
 /** Join the text blocks of a harness message. */
 function flattenText(message: Message): string {
@@ -28,29 +34,79 @@ function flattenText(message: Message): string {
 
 export const DEFAULT_MAX_TOOL_RESULT_CHARS = 32_768
 
+/** Options controlling compaction behavior and spill store integration. */
+export interface CompactionOptions {
+  /** Character budget; results at or under it pass through untouched. */
+  maxChars?: number
+  /** Whether to store truncated content into spill store and attach `[compaction_pointer: <id>]`. */
+  compactionPointer?: boolean
+  /** Spill store map/file backend to persist truncated content. */
+  spillStore?: CompactionSpillStore
+  /** Explicit pointer ID to use instead of generating one. */
+  pointerId?: string
+}
+
 /**
  * Smart micro-compaction of large tool outputs to optimize context and token
  * costs. Preserves the head (45%) and tail (45%) of the configured budget and
  * names the omitted span, so a model keeps both the command shape and the
  * freshest output of an oversized tool result.
+ *
+ * When `compactionPointer` is active, the full untruncated content is stored into
+ * the spill store map/file, and a formal pointer tag `[compaction_pointer: <id>]`
+ * is embedded in the truncation marker.
+ *
  * @param raw - the full inline tool-result text.
- * @param maxChars - character budget; results at or under it pass through untouched.
+ * @param maxCharsOrOptions - character budget or compaction options object.
+ * @param legacyOptions - optional additional options when maxChars is passed as number.
  * @returns the original text, or the compacted head + marker + tail form.
  */
-export function compactToolResultText(raw: string, maxChars = DEFAULT_MAX_TOOL_RESULT_CHARS): string {
+export function compactToolResultText(
+  raw: string,
+  maxCharsOrOptions: number | CompactionOptions = DEFAULT_MAX_TOOL_RESULT_CHARS,
+  legacyOptions?: CompactionOptions,
+): string {
+  const options: CompactionOptions = typeof maxCharsOrOptions === 'number'
+    ? { maxChars: maxCharsOrOptions, ...legacyOptions }
+    : (maxCharsOrOptions ?? {})
+
+  const maxChars = options.maxChars ?? DEFAULT_MAX_TOOL_RESULT_CHARS
   if (raw.length <= maxChars) return raw
   const headChars = Math.floor(maxChars * 0.45)
   const tailChars = Math.floor(maxChars * 0.45)
   const omitted = raw.length - headChars - tailChars
-  return `${raw.slice(0, headChars)}\n\n[... Tool output truncated: ${omitted} characters compacted for context efficiency ...]\n\n${raw.slice(-tailChars)}`
+
+  let pointerTag = ''
+  if (options.compactionPointer) {
+    const store = options.spillStore ?? defaultCompactionSpillStore
+    const id = store.store(raw, options.pointerId)
+    pointerTag = ` [compaction_pointer: ${id}]`
+  }
+
+  return `${raw.slice(0, headChars)}\n\n[... Tool output truncated: ${omitted} characters compacted for context efficiency${pointerTag} ...]\n\n${raw.slice(-tailChars)}`
+}
+
+/**
+ * Compact context message text with optional compaction pointer tagging.
+ */
+export function compactMessageText(
+  raw: string,
+  maxCharsOrOptions: number | CompactionOptions = DEFAULT_MAX_TOOL_RESULT_CHARS,
+  legacyOptions?: CompactionOptions,
+): string {
+  return compactToolResultText(raw, maxCharsOrOptions, legacyOptions)
 }
 
 /** Flatten text recursively inside one tool result. */
-function toolResultText(blocks: readonly ContentBlock[], maxChars: number): string {
+function toolResultText(
+  blocks: readonly ContentBlock[],
+  maxChars: number,
+  compactionOpts?: CompactionOptions,
+): string {
   const raw = blocks.map(block => block.type === 'text'
     ? block.text
-    : block.type === 'tool-result' ? toolResultText(block.content, maxChars) : '').join('')
-  return compactToolResultText(raw, maxChars)
+    : block.type === 'tool-result' ? toolResultText(block.content, maxChars, compactionOpts) : '').join('')
+  return compactToolResultText(raw, { ...compactionOpts, maxChars })
 }
 
 /** Reject image roles that pi-ai cannot replay before request-size offloading can replace them. */
@@ -137,21 +193,60 @@ async function prepareRequestImages(
   return versions
 }
 
-function toolsOf(options: GenerateOptions): PiTool[] | undefined {
+/**
+ * Recursively sort object keys for deterministic serialization of JSON Schemas
+ * (tool parameters).
+ */
+export function canonicalizeJsonSchema<T>(value: T): T {
+  if (value === null || typeof value !== 'object') {
+    return value
+  }
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeJsonSchema) as unknown as T
+  }
+  const obj = value as Record<string, unknown>
+  const sortedKeys = Object.keys(obj).sort()
+  const result: Record<string, unknown> = {}
+  for (const key of sortedKeys) {
+    result[key] = canonicalizeJsonSchema(obj[key])
+  }
+  return result as T
+}
+
+/**
+ * Deterministic system prompt normalization: normalizes line endings (CRLF -> LF).
+ */
+export function normalizeSystemPrompt(system: string | undefined): string | undefined {
+  if (system === undefined) return undefined
+  return system.replace(/\r\n/g, '\n')
+}
+
+function toolsOf(options: GenerateOptions, canonicalize = false): PiTool[] | undefined {
   return options.tools?.map(tool => ({
     name: tool.name,
     description: tool.description,
     // ToolSchema.parameters is a JSON Schema object; pi-ai's TSchema
     // (TypeBox) is structurally JSON Schema, so it assigns directly.
-    parameters: tool.parameters,
+    parameters: canonicalize ? canonicalizeJsonSchema(tool.parameters) : tool.parameters,
   }))
 }
 
 /** Assemble the request-level pi-ai context envelope shared by both conversion paths. */
-function piContext(options: GenerateOptions, messages: PiMessage[]): PiContext {
-  const tools = toolsOf(options)
+function piContext(
+  options: GenerateOptions,
+  messages: PiMessage[],
+  promptCacheStablePrefix = false,
+): PiContext {
+  let tools = toolsOf(options, promptCacheStablePrefix)
+  if (tools !== undefined && tools.length > 0 && promptCacheStablePrefix) {
+    tools = stableToolOrder(tools, true)
+  }
+  let systemPrompt = options.system
+  if (systemPrompt !== undefined && promptCacheStablePrefix) {
+    systemPrompt = normalizeSystemPrompt(systemPrompt)
+  }
   return {
-    ...options.system !== undefined ? { systemPrompt: options.system } : {},
+    ...systemPrompt !== undefined ? { systemPrompt } : {},
     messages,
     ...tools !== undefined && tools.length > 0 ? { tools } : {},
   }
@@ -164,11 +259,24 @@ function piContext(options: GenerateOptions, messages: PiMessage[]): PiContext {
  * merge results) silently invalidates it. Sorting by name makes the block a
  * pure function of the tool SET. Semantically inert: every protocol treats
  * the list as an unordered catalog.
+ *
+ * When `canonicalizeSchemas` is true, tool parameters schemas are recursively key-sorted
+ * for deterministic JSON byte serialization.
+ *
  * @param tools - the assembled tool list.
+ * @param canonicalizeSchemas - whether to sort parameters schema keys deeply.
  * @returns a name-sorted copy; the input is untouched.
  */
-export function stableToolOrder<T extends { name: string }>(tools: readonly T[]): T[] {
-  return [...tools].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+export function stableToolOrder<T extends { name: string; description?: string; parameters?: unknown }>(
+  tools: readonly T[],
+  canonicalizeSchemas = false,
+): T[] {
+  const sorted = [...tools].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+  if (!canonicalizeSchemas) return sorted
+  return sorted.map(tool => ({
+    ...tool,
+    ...(tool.parameters !== undefined ? { parameters: canonicalizeJsonSchema(tool.parameters) } : {}),
+  }))
 }
 
 /**
@@ -211,9 +319,17 @@ function textOnlyContext(
   options: GenerateOptions,
   onReplayDegrade?: (reason: string) => void,
   maxToolResultChars: number = DEFAULT_MAX_TOOL_RESULT_CHARS,
+  contextOptions?: PiContextOptions,
 ): PiContext {
   const toolNames = new Map<ToolCallId, string>()
   const messages: PiMessage[] = []
+  const compactionOpts: CompactionOptions = {
+    maxChars: maxToolResultChars,
+    ...contextOptions?.compactionPointer !== undefined ? { compactionPointer: contextOptions.compactionPointer } : {},
+    ...contextOptions?.spillStore !== undefined ? { spillStore: contextOptions.spillStore } : {},
+  }
+  const promptCacheStablePrefix = contextOptions?.promptCacheStablePrefix ?? false
+
   for (const message of options.messages) {
     if (contentHasImage(message.content)) {
       throw new LlmError('pi-ai image conversion requires the durable attachment service', 'UNSUPPORTED_CONTENT')
@@ -236,14 +352,23 @@ function textOnlyContext(
         toolName: toolNames.get(result.toolCallId) ?? 'unknown',
         content: [{
           type: 'text',
-          text: toolResultText(result.content, maxToolResultChars) || '(no output)',
+          text: toolResultText(result.content, maxToolResultChars, compactionOpts) || '(no output)',
         }],
         isError: result.isError ?? false,
         timestamp: 0,
       })
     }
   }
-  return piContext(options, messages)
+  return piContext(options, messages, promptCacheStablePrefix)
+}
+
+/** Options configuring context conversion features (compaction pointers, cache stable prefix). */
+export interface PiContextOptions {
+  onReplayDegrade?: (reason: string) => void
+  maxToolResultChars?: number
+  compactionPointer?: boolean
+  spillStore?: CompactionSpillStore
+  promptCacheStablePrefix?: boolean
 }
 
 /** Inputs that bind deterministic request images to one current tool execution world. */
@@ -258,6 +383,12 @@ export interface PiImageRequestContext {
   requestImagePolicy?: ImageRequestPolicy
   /** Inline tool-result character budget; omission uses the 32,768 default. */
   maxToolResultChars?: number
+  /** Agent-Lab compactionPointer flag: store truncated outputs in spill store and tag with pointer. */
+  compactionPointer?: boolean
+  /** Spill store backend for compaction pointers. */
+  spillStore?: CompactionSpillStore
+  /** Agent-Lab promptCacheStablePrefix flag: sort tools and canonicalize schemas. */
+  promptCacheStablePrefix?: boolean
 }
 
 /**
@@ -267,6 +398,7 @@ export interface PiImageRequestContext {
  * @param images - absent; selects the synchronous conversion.
  * @param onReplayDegrade - forwarded to {@link toPiAssistant} for each assistant message.
  * @param maxToolResultChars - inline tool-result character budget; omission uses the 32,768 default.
+ * @param contextOptions - options configuring compaction pointer and stable prefix.
  * @returns the pi-ai context; `tools` is omitted when the request declares none.
  */
 export function toPiContext(
@@ -274,6 +406,7 @@ export function toPiContext(
   images?: undefined,
   onReplayDegrade?: (reason: string) => void,
   maxToolResultChars?: number,
+  contextOptions?: PiContextOptions,
 ): PiContext
 /**
  * Convert harness history to a pi-ai Context while resolving durable images.
@@ -296,9 +429,10 @@ export function toPiContext(
   images?: PiImageRequestContext,
   onReplayDegrade?: (reason: string) => void,
   maxToolResultChars?: number,
+  contextOptions?: PiContextOptions,
 ): PiContext | Promise<PiContext> {
   return images === undefined
-    ? textOnlyContext(options, onReplayDegrade, maxToolResultChars)
+    ? textOnlyContext(options, onReplayDegrade, maxToolResultChars, contextOptions)
     : toPiContextWithImages(options, images, onReplayDegrade)
 }
 
@@ -312,7 +446,15 @@ async function toPiContextWithImages(
     resolveImageAccess,
     maxRequestImageBytes,
     maxToolResultChars = DEFAULT_MAX_TOOL_RESULT_CHARS,
+    compactionPointer,
+    spillStore,
+    promptCacheStablePrefix = false,
   } = images
+  const compactionOpts: CompactionOptions = {
+    maxChars: maxToolResultChars,
+    ...compactionPointer !== undefined ? { compactionPointer } : {},
+    ...spillStore !== undefined ? { spillStore } : {},
+  }
   const requestImagePolicy = images.requestImagePolicy ?? {
     maxPixels: DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET,
     maxBytes: DEFAULT_REQUEST_IMAGE_MAX_BYTES,
@@ -364,7 +506,10 @@ async function toPiContextWithImages(
         toolCallId: result.toolCallId,
         toolName: toolNames.get(result.toolCallId) ?? 'unknown',
         content: typeof resultContent === 'string'
-          ? [{ type: 'text', text: compactToolResultText(resultContent, maxToolResultChars) || '(no output)' }]
+          ? [{
+            type: 'text',
+            text: compactToolResultText(resultContent, { ...compactionOpts, maxChars: maxToolResultChars }) || '(no output)',
+          }]
           : resultContent,
         isError: result.isError ?? false,
         timestamp: 0,
@@ -372,5 +517,5 @@ async function toPiContextWithImages(
     }
   }
 
-  return piContext(options, messages)
+  return piContext(options, messages, promptCacheStablePrefix)
 }

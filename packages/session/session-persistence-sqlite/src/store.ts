@@ -252,6 +252,22 @@ export class SqliteStore implements PersistenceBackend<number> {
     }
   }
 
+  async truncateFrom(id: SessionId, fromSeq: number): Promise<void> {
+    await this.open()
+    this.db.exec(sql('begin-immediate'))
+    try {
+      validateSchemaForMutation(this.databaseConstructor, this.db, this.databasePath)
+      const row = this.rowFor(id)
+      if (row === undefined) throw new Error(`session ${id} metadata row is missing`)
+      const sessionKey = this.sessionKey(id)
+      this.db.prepare(sql('delete-events-from')).run(sessionKey, fromSeq)
+      this.incrementRevision(id)
+      this.db.exec(sql('commit'))
+    } catch (error: unknown) {
+      this.rollback(error, 'truncate')
+    }
+  }
+
   async list(signal?: AbortSignal): Promise<SessionHeader[]> {
     await this.observe(signal)
     const rows = this.sessionRows()

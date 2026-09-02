@@ -196,6 +196,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'session/steer-unavailable': { readonly itemId: MessageId }
     'session/title-invalid': { readonly sessionId: SessionId }
     'session/fork-unavailable': { readonly sessionId: SessionId }
+    'session/truncate-unavailable': { readonly sessionId: SessionId; readonly reason?: string }
     'subagent/not-found': {
       readonly parentSessionId: SessionId
       readonly childSessionId: SessionId
@@ -296,6 +297,23 @@ export interface SessionForkRequest {
 /** Identity of a newly forked Session. */
 export interface SessionForkValue {
   readonly sessionId: SessionId
+}
+
+/** Session truncate request. */
+export interface SessionTruncateRequest {
+  readonly sessionId: SessionId
+  /** First event sequence number to delete (inclusive). */
+  readonly atSeq?: number
+  /** Turn index from which to truncate. */
+  readonly turnIndex?: number
+  /** Optional flag override for experimental sessionTruncate enablement. */
+  readonly flags?: { readonly sessionTruncate?: boolean }
+}
+
+/** Confirmation and sequence cutoff after a Session is truncated in place. */
+export interface SessionTruncateValue {
+  readonly sessionId: SessionId
+  readonly truncatedAtSeq: number
 }
 
 /** Session prompt request. */

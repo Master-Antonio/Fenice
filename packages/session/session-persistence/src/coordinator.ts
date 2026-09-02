@@ -920,6 +920,31 @@ export class PersistenceCoordinator<TornMarker = unknown> {
     return waited.then(() => this.serialize(id, () => this.readFromCore(id, fromSeq, signal), signal))
   }
 
+  /**
+   * Truncate durable history from `fromSeq` onward for this session and invalidate preparations.
+   * @param id - persisted session to truncate.
+   * @param fromSeq - first event seq to delete.
+   * @param signal - optional cancellation.
+   */
+  truncateFrom(id: SessionId, fromSeq: number, signal?: AbortSignal): Promise<void> {
+    if (!Number.isSafeInteger(fromSeq) || fromSeq < 0) {
+      return Promise.reject(new TypeError(`truncateFrom fromSeq must be a non-negative safe integer, got ${String(fromSeq)}`))
+    }
+    const retired = Promise.resolve(this.retirements.get(id))
+    const waited = signal === undefined ? retired : observeQueuedAbort(retired, signal, () => false)
+    return waited.then(() => this.serialize(id, async () => {
+      this.preparations.invalidate(id)
+      const state = this.states.get(id)
+      if (state !== undefined) {
+        state.cursor = Math.min(state.cursor, fromSeq)
+      }
+      const backend = this.backend as { truncateFrom?: (sessionId: SessionId, seq: number) => Promise<void> }
+      if (typeof backend.truncateFrom === 'function') {
+        await backend.truncateFrom(id, fromSeq)
+      }
+    }, signal))
+  }
+
   private async readFromCore(
     id: SessionId,
     fromSeq: number,

@@ -20,7 +20,9 @@ import type { GenerateOptions, LlmCallConfig, Message, PreparedLlmCall } from '@
 import {
   BlockAssembler,
   LlmError,
+  ReasoningEffortId,
   createAssistantMessage,
+  createUserMessage,
   errorChain,
   markAgentLoopRequest,
 } from '@deepseek-ai/dsh-llm'
@@ -33,7 +35,9 @@ import { joinContextSections, renderContextSections, renderPrompt } from '@deeps
 import type { PromptAssembly } from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import type { Context } from '@deepseek-ai/cordis'
+import { DEFAULT_MAX_SELF_HEALING_RETRIES } from './constants.ts'
 import { RuntimeContextProjection } from './runtime-context.ts'
+import { evaluateTaskComplexity } from './tier-router.ts'
 import { executeToolCalls } from './tool-calls.ts'
 
 type Phase =
@@ -84,6 +88,33 @@ export class ReactLoopAgent implements Agent {
   /** Surface generation of the preceding built request. */
   private requestSurfaceGeneration: number | undefined
   private readonly runtimeContext: RuntimeContextProjection
+  private selfHealingRetries = 0
+
+  private isSelfHealingEnabled(): boolean {
+    if (this.options.flags?.selfHealingLoop !== undefined) return this.options.flags.selfHealingLoop
+    if (this.loopCtx.agentLoop.config.flags?.selfHealingLoop !== undefined) {
+      return this.loopCtx.agentLoop.config.flags.selfHealingLoop
+    }
+    const labSettings = this.loopCtx.get('settings')?.get('agent-lab') as Record<string, unknown> | undefined
+    if (labSettings?.selfHealingLoop === true) return true
+    return false
+  }
+
+  private isTierRouterEnabled(): boolean {
+    if (this.options.flags?.tierRouter !== undefined) return this.options.flags.tierRouter
+    if (this.loopCtx.agentLoop.config.flags?.tierRouter !== undefined) {
+      return this.loopCtx.agentLoop.config.flags.tierRouter
+    }
+    const labSettings = this.loopCtx.get('settings')?.get('agent-lab') as Record<string, unknown> | undefined
+    if (labSettings?.tierRouter === true) return true
+    return false
+  }
+
+  private maxSelfHealingRetries(): number {
+    return this.options.maxSelfHealingRetries
+      ?? this.loopCtx.agentLoop.config.maxSelfHealingRetries
+      ?? DEFAULT_MAX_SELF_HEALING_RETRIES
+  }
 
   constructor(
     private loopCtx: Context,
@@ -260,6 +291,7 @@ export class ReactLoopAgent implements Agent {
     const { signal } = phase.abort
     signal.throwIfAborted()
     const turn = phase.turn + 1
+    this.selfHealingRetries = 0
     try {
       this.session.append('turn/start', { turn })
     } catch (error: unknown) {
@@ -429,10 +461,30 @@ export class ReactLoopAgent implements Agent {
 
       const toolCalls = message.content.filter(block => block.type === 'tool-call')
       if (toolCalls.length === 0) return { kind: 'completed' }
-      const { concluded } = await executeToolCalls(
+      const { concluded, hasErrors, errors } = await executeToolCalls(
         this.loopCtx, turn, step, toolCalls, signal,
         context => this.inbox.splice('next-step', this.inbox.nextStep.length, 0, [context]),
       )
+
+      // Agent-Lab selfHealingLoop: when flags.selfHealingLoop is true and a tool call execution returns an error,
+      // automatically trigger a bounded self-healing diagnosis/retry step (up to max retries) before terminating the turn.
+      if (hasErrors && this.isSelfHealingEnabled()) {
+        const maxRetries = this.maxSelfHealingRetries()
+        if (this.selfHealingRetries < maxRetries) {
+          this.selfHealingRetries++
+          const errorSummaries = errors.map(e => `Tool "${e.toolName}" failed: ${e.errorMessage}`).join('\n')
+          const healingMessage = createUserMessage({
+            content: [{
+              type: 'text',
+              text: `[Self-Healing Diagnosis] Tool execution encountered error(s):\n${errorSummaries}\nPlease diagnose the failure, explain the root cause, and retry or adjust the tool execution (Attempt ${this.selfHealingRetries}/${maxRetries}).`,
+            }],
+            source: { kind: 'plugin', plugin: 'self-healing-loop' },
+          })
+          this.inbox.splice('next-step', this.inbox.nextStep.length, 0, [healingMessage])
+          return null
+        }
+      }
+
       return concluded ? { kind: 'completed' } : null
     }
   }
@@ -465,7 +517,7 @@ export class ReactLoopAgent implements Agent {
       : undefined
     const reasoningEffort = this.options.reasoningEffort ?? persistedReasoningEffort
     const maxTokens = this.options.maxTokens
-    const seedConfig = deepFreeze(structuredClone(
+    let seedConfig = deepFreeze(structuredClone(
       this.requestHeaderLogged
         // oxlint-disable-next-line typescript/no-non-null-assertion -- the instance logged the header it now folds
         ? requestProposal(persistedHeader!)
@@ -475,6 +527,13 @@ export class ReactLoopAgent implements Agent {
           ...maxTokens === undefined ? {} : { maxTokens },
         },
     ))
+    // Agent-Lab tierRouter: evaluate task complexity heuristics to dynamically route or recommend appropriate model tiers.
+    if (this.isTierRouterEnabled()) {
+      const report = evaluateTaskComplexity(boundaryMessages, tools)
+      if (report.tier === 'reasoning' && seedConfig.reasoningEffort === undefined) {
+        seedConfig = deepFreeze({ ...seedConfig, reasoningEffort: ReasoningEffortId('high') })
+      }
+    }
     const proposedConfig = await this.dispatch.waterfall(
       'agent/request', { turn, step, signal },
       () => Promise.resolve(seedConfig),

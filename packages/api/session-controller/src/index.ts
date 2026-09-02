@@ -47,6 +47,8 @@ import type {
   SessionSearchValue,
   SessionSelectModelRequest,
   SessionSelectModelValue,
+  SessionTruncateRequest,
+  SessionTruncateValue,
   SessionUpdateQueueRequest,
   SessionUpdateQueueValue,
 } from './types.ts'
@@ -310,6 +312,16 @@ export class SessionController extends TypertRemoteService {
   @Remote('fork')
   fork(request: SessionForkRequest): Promise<SessionForkValue> {
     return this.commands.fork(request)
+  }
+
+  /**
+   * Truncate one Session in place to a completed-turn prefix or turn index.
+   * @param request - source Session and optional sequence or turn index cutoff.
+   * @returns the truncated Session identity and cutoff sequence.
+   */
+  @Remote('truncate')
+  truncate(request: SessionTruncateRequest): Promise<SessionTruncateValue> {
+    return this.commands.truncate(request)
   }
 
   /**

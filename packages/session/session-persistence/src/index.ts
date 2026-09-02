@@ -280,6 +280,13 @@ export abstract class SessionPersistence extends Service {
    * @returns one header and opaque revision per materialized session without loading full logs.
    */
   abstract listSnapshots(signal?: AbortSignal): Promise<SessionPersistenceSnapshot[]>
+
+  /**
+   * Truncate durably stored events from `fromSeq` onward for one session.
+   * @param _id - the persisted session to truncate.
+   * @param _fromSeq - first event seq to delete.
+   */
+  truncateFrom?(_id: SessionId, _fromSeq: number): Promise<void>
 }
 
 export default SessionPersistence

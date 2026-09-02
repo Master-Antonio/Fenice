@@ -885,4 +885,27 @@ describe('SessionPersistenceSqlite edge behavior', () => {
     await expect(store.open()).rejects.toThrow(/ENOENT|ENOTDIR/)
     await store.close()
   })
+
+  it('truncates stored events from a given seq and updates revision', async () => {
+    const path = await freshDbPath('dsh-sqlite-truncate-')
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(SessionPersistenceSqlite, { path })
+    const session = ctx.sessions.create(SessionId('session-truncate-test'), { meta: { cwd: '/proj' } })
+    for (let i = 0; i < 5; i++) {
+      session.append('turn/start', { turn: i + 1 })
+    }
+    await ctx.sessions.flush(session)
+
+    const before = await ctx.sessionPersistence.readFrom(session.id, 0)
+    expect(before.events.length).toBe(5)
+
+    await ctx.sessionPersistence.truncateFrom!(session.id, 3)
+
+    const after = await ctx.sessionPersistence.readFrom(session.id, 0)
+    expect(after.events.length).toBe(3)
+    expect(after.events.map(e => e.seq)).toEqual([0, 1, 2])
+
+    await ctx.fiber.dispose()
+  })
 })

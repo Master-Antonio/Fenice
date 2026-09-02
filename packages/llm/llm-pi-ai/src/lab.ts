@@ -42,19 +42,27 @@ export interface AgentLabFlags {
 }
 
 /** The flags whose implementation ships with this build; others stay inert. */
-export const IMPLEMENTED_FLAGS = ['circuitBreaker', 'cascadeMetrics', 'turnTelemetry'] as const
+export const IMPLEMENTED_FLAGS = [
+  'circuitBreaker',
+  'cascadeMetrics',
+  'turnTelemetry',
+  'promptCacheStablePrefix',
+  'compactionPointer',
+  'tierRouter',
+  'selfHealingLoop',
+] as const
 
 const DESCRIPTIONS: Record<keyof AgentLabFlags, string> = {
   circuitBreaker: 'Skip a failing provider route straight to its fallback after repeated quick failures.',
   cascadeMetrics: 'Record every fallback cascade hop to the external Agent-Lab telemetry file.',
   turnTelemetry: 'Record per-turn token usage, latency, and outcome to the external Agent-Lab telemetry file.',
-  promptCacheStablePrefix: '(coming soon) Keep the request prefix byte-stable to maximize provider cache hits.',
-  compactionPointer: '(coming soon) Truncated tool outputs link to their full copy in the spill store.',
-  tierRouter: '(coming soon) Route easy tasks to cheap models and hard tasks to frontier models.',
+  promptCacheStablePrefix: 'Keep the request prefix byte-stable to maximize provider cache hits.',
+  compactionPointer: 'Truncated tool outputs link to their full copy in the spill store.',
+  tierRouter: 'Route tasks to model tiers by difficulty heuristics and budget caps.',
   sessionTruncate: '(coming soon) True in-place truncation powering rewind/delete without forking.',
   mcpServer: '(coming soon) Expose DSH sessions and tools over the MCP standard.',
   semanticMemory: '(coming soon) Meaning-based search over past sessions via pluggable embeddings.',
-  selfHealingLoop: '(coming soon) Bounded reproduce-fix-retest loop on failing work items.',
+  selfHealingLoop: 'Bounded reproduce-fix-retest loop on failing work items.',
 }
 
 /** Runtime schema for the Agent-Lab section; every flag defaults to OFF except the meters. */

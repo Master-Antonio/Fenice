@@ -41,6 +41,8 @@ import type {
   SessionRenameValue,
   SessionSelectModelRequest,
   SessionSelectModelValue,
+  SessionTruncateRequest,
+  SessionTruncateValue,
   SessionUpdateQueueRequest,
   SessionUpdateQueueValue,
 } from './types.ts'
@@ -273,6 +275,89 @@ export class SessionCommandController {
       }
     }
     return { sessionId: childId }
+  }
+
+  /**
+   * Truncate / rewind one Session in place to an event sequence or turn index.
+   * @param request - Session identity and cut location (atSeq or turnIndex).
+   * @returns acknowledgement and the sequence cutoff.
+   */
+  async truncate(request: SessionTruncateRequest): Promise<SessionTruncateValue> {
+    const isEnabled = request.flags?.sessionTruncate === true
+      || (this.ctx.get('settings')?.get('agent-lab') as { sessionTruncate?: boolean } | undefined)?.sessionTruncate === true
+    if (!isEnabled) {
+      throw new RemoteError(
+        'session/truncate-unavailable',
+        'sessionTruncate is disabled (enable the sessionTruncate flag in agent-lab settings)',
+        { sessionId: request.sessionId, reason: 'FLAG_DISABLED' },
+      )
+    }
+
+    const liveAgent = this.ctx.agents.get(request.sessionId)
+    if (liveAgent !== undefined && hasApiSessionSubagentOwner(this.ctx, liveAgent.session, liveAgent)) {
+      throw apiSessionSubagentOwnershipError(request.sessionId)
+    }
+    if (liveAgent?.status === 'running') {
+      throw new RemoteError(
+        'session/agent-busy',
+        'cannot truncate a running session',
+        { reason: 'SESSION_RUNNING' },
+      )
+    }
+
+    let source: SessionReadState
+    try {
+      source = await this.readSessionState(request.sessionId)
+    } catch (error) {
+      if (error instanceof ApiSessionNotFound) {
+        throw new RemoteError('session/not-found', error.message, { sessionId: request.sessionId })
+      }
+      throw new RemoteError(
+        'gateway/internal',
+        `truncate source unavailable for session "${request.sessionId}": ${String(error)}`,
+        {},
+      )
+    }
+
+    const events = source.events
+    let cutSeq: number
+
+    if (request.atSeq !== undefined) {
+      if (!Number.isInteger(request.atSeq) || request.atSeq < 0) {
+        throw new RemoteError('gateway/bad-request', 'atSeq must be a non-negative integer', {})
+      }
+      cutSeq = request.atSeq
+    } else if (request.turnIndex !== undefined) {
+      if (!Number.isInteger(request.turnIndex) || request.turnIndex < 0) {
+        throw new RemoteError('gateway/bad-request', 'turnIndex must be a non-negative integer', {})
+      }
+      const turnStarts = events.filter(e => e.type === 'turn/start')
+      const turnStart = turnStarts[request.turnIndex]
+      if (turnStart === undefined) {
+        throw new RemoteError(
+          'session/truncate-unavailable',
+          `turnIndex ${request.turnIndex} is out of bounds (session has ${turnStarts.length} turns)`,
+          { sessionId: request.sessionId, reason: 'TURN_INDEX_OUT_OF_BOUNDS' },
+        )
+      }
+      cutSeq = turnStart.seq
+    } else {
+      // Default: rewind the last turn
+      const lastTurnStart = events.filter(e => e.type === 'turn/start').at(-1)
+      cutSeq = lastTurnStart?.seq ?? 0
+    }
+
+    if (this.ctx.sessionPersistence?.truncateFrom) {
+      await this.ctx.sessionPersistence.truncateFrom(request.sessionId, cutSeq)
+    }
+
+    const liveScope = liveAgent === undefined ? undefined : (liveAgent.ctx as { scope?: { dispose?: () => void } }).scope
+    if (liveAgent !== undefined && liveAgent.ctx !== this.ctx && typeof liveScope?.dispose === 'function') {
+      liveScope.dispose()
+    }
+
+    this.ctx.emit('api-session/activity', request.sessionId, Date.now())
+    return { sessionId: request.sessionId, truncatedAtSeq: cutSeq }
   }
 
   /**

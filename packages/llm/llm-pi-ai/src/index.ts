@@ -93,6 +93,18 @@ export type {
 } from './config.ts'
 export { recordKeyFor } from './auth.ts'
 export { supportedProtocols } from './provider.ts'
+export {
+  CompactionSpillStore,
+  defaultCompactionSpillStore,
+  type CompactionSpillStoreOptions,
+} from './spill.ts'
+export {
+  evaluateTaskComplexity,
+  routeTier,
+  type ComplexityCategory,
+  type ModelTier,
+  type TaskComplexityReport,
+} from './tier-router.ts'
 
 export const name = 'llm-pi-ai'
 export const inject = ['llm']

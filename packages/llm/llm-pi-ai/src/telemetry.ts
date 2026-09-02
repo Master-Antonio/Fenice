@@ -39,6 +39,10 @@ export interface TurnEvent {
   latencyMs: number
   /** Stability fingerprint of the cache-relevant request prefix (when built). */
   prefixHash?: string
+  /** Task complexity tier resolved by tierRouter (when active). */
+  tier?: string
+  /** Numeric complexity score from 0 to 100 evaluated for this turn. */
+  tierScore?: number
 }
 
 export type LabTelemetryEvent = FallbackEvent | TurnEvent

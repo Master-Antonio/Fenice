@@ -21,6 +21,9 @@
       "path": "../ui-sidebar"
     },
     {
+      "path": "../ui-conversation"
+    },
+    {
       "path": "../ui-slots"
     }
   ]

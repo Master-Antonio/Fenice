@@ -8,6 +8,10 @@ const IMPLEMENTED: readonly AgentLabKey[] = [
   'flagCircuitBreaker',
   'flagCascadeMetrics',
   'flagTurnTelemetry',
+  'flagPromptCacheStablePrefix',
+  'flagCompactionPointer',
+  'flagTierRouter',
+  'flagSelfHealingLoop',
 ]
 
 /** Ordered flag rows: section key + its locale label key. */

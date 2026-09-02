@@ -30,9 +30,10 @@ import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
+import type {} from '@deepseek-ai/dsh-session-persistence'
 import type { SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
 import { ReactLoopAgent } from './agent.ts'
-import { DEFAULT_MAX_PARALLEL_TOOL_CALLS } from './constants.ts'
+import { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_SELF_HEALING_RETRIES } from './constants.ts'
 
 /** Fiber states that cannot own or serve a new lifecycle. */
 const INACTIVE_STATES: ReadonlySet<FiberState> = new Set([
@@ -177,7 +178,6 @@ async function raceAbortCall<T>(
   try {
     return await raceAbort(pending, signal, id)
   } catch (error: unknown) {
-    // oxlint-disable-next-line typescript/no-unnecessary-condition -- the signal can abort while the operation is awaited.
     if (signal.aborted && releaseAbandoned !== undefined) {
       void pending.then(releaseAbandoned, () => undefined)
     }
@@ -240,7 +240,30 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-export { DEFAULT_MAX_PARALLEL_TOOL_CALLS }
+declare module '@deepseek-ai/dsh-agent' {
+  interface AgentOptions {
+    /** Optional experiment flags (e.g. tierRouter, selfHealingLoop). */
+    flags?: AgentLoopFlags
+    /** Maximum self-healing retry attempts per turn when selfHealingLoop is active. */
+    maxSelfHealingRetries?: number
+  }
+}
+
+export { DEFAULT_MAX_PARALLEL_TOOL_CALLS, DEFAULT_MAX_SELF_HEALING_RETRIES }
+export {
+  evaluateTaskComplexity,
+  type ComplexityCategory,
+  type ModelTier,
+  type TaskComplexityReport,
+} from './tier-router.ts'
+export type { ExecuteToolCallsResult, ToolCallErrorDetail } from './tool-calls.ts'
+
+/** Experiment switches supported by the agent-loop driver. */
+export interface AgentLoopFlags {
+  tierRouter?: boolean
+  selfHealingLoop?: boolean
+  [key: string]: boolean | undefined
+}
 
 /**
  * One launcher-selected session identity for a configured agent. `resume`
@@ -314,6 +337,13 @@ export interface Config {
    * omission defaults to {@link DEFAULT_MAX_PARALLEL_TOOL_CALLS}.
    */
   maxParallelToolCalls?: number
+  /**
+   * Maximum self-healing retry attempts per turn when selfHealingLoop is active.
+   * Defaults to {@link DEFAULT_MAX_SELF_HEALING_RETRIES}.
+   */
+  maxSelfHealingRetries?: number
+  /** Experiment flags (e.g. tierRouter, selfHealingLoop). */
+  flags?: AgentLoopFlags
   /** Agents created or resumed at plugin startup. */
   agents: (AgentOptions & {
     /** Stable config label used in logs and as the fresh combined-id prefix. */
@@ -755,6 +785,7 @@ export class AgentLoop extends Service implements AgentFactory {
         }
         ownerCtx.fiber.assertActive()
         if (!this.ownership.isActive()) throw new Error('agent loop is not active')
+        if (preparation === undefined) throw new Error(`failed to prepare session "${id}"`)
         return await this.setupAndPublish(
           ownerCtx,
           id,

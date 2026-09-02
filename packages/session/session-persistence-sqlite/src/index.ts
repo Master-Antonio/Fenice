@@ -139,6 +139,10 @@ export class SqliteSessionPersistence extends SessionPersistence {
   listSnapshots(signal?: AbortSignal): Promise<SessionPersistenceSnapshot[]> {
     return this.store.listSnapshots(signal)
   }
+
+  override truncateFrom(id: SessionId, fromSeq: number): Promise<void> {
+    return this.coordinator.truncateFrom(id, fromSeq)
+  }
 }
 
 export default SqliteSessionPersistence

@@ -1,46 +1,47 @@
-import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
+export interface OfficialBrandMarkProps {
+  size?: number | undefined
+  className?: string | undefined
+}
 
-export type OfficialBrandMarkProps = SidebarBrandMarkOwnerProps & { className?: string }
+export const FENICE_LOGO_VIEWBOX = { width: 24, height: 24 }
+
+export const FENICE_LOGO_PATH =
+  'M12 1.5c-.8 1.8-.4 3.5.8 4.8-2-1.2-4.2-1.2-6-.2 1.5 1 3.2 1.5 4.8 1.2-2.5.8-4.2 2.2-5.2 4.2 1.5 0 3-.5 4.2-1.2-1.5 1.8-2.2 4-2 6.2 1.2-1.2 2.4-2.5 3-4.2-.2 2.2.4 4.5 1.8 6.5.5-1.8 1.2-3.5 2.4-4.8-.8 2.5-.5 5 1 7.2.8-2.2 1.2-4.8.8-7.2 1.2 1.5 3 2.2 4.8 1.8-1.2-1.8-2-3.8-2.2-6 1.2.2 2.5-.2 3.2-1.2-1.2-.2-2.2-.8-2.8-1.8 1.2-.2 2.2-1 2.8-2.2-2 .5-3.5 1.5-4.2 3-.5-1.5-1.5-2.8-3-3.5.8 1 1 2.2.8 3.5-.8-2-1.8-3.8-3.2-5.8z'
 
 /**
- * Fenice mark: a compact rising-flame glyph drawn on the currentColor ink,
- * replacing the upstream whale art for this fork's identity.
- * @param props - Host-supplied mark presentation.
- * @returns the Fenice flame mark.
+ * Fenice Phoenix Mark: A distinct, iconic vector silhouette of a soaring Phoenix.
+ * @param props - Host/Sidebar/Hero-supplied mark presentation.
+ * @returns the Fenice Phoenix mark SVG element.
  */
-export function OfficialBrandMark({ size, className }: OfficialBrandMarkProps) {
+export function OfficialBrandMark({ size = 24, className }: OfficialBrandMarkProps) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
+      fill="none"
       role="img"
       aria-label="Fenice"
       className={className}
-      fill="none"
     >
-      <path
-        d="M12 2c1.8 3.2-.6 4.9-1.9 6.6C8.7 10.5 8 12 8 13.6A4.4 4.4 0 0 0 12.4 18a4.6 4.6 0 0 0 4.6-4.7c0-1.5-.6-2.8-1.4-4 .1 1.2-.4 2-1.2 2.4.6-2.9-.4-6.6-2.4-9.7Z"
-        fill="currentColor"
-        opacity="0.9"
-      />
-      <path
-        d="M12 22c-4.4 0-8-3.1-8-7.4 0-2.5 1.2-4.6 2.6-6.4-.2 1.3.2 2.3 1 2.9C7.2 8.4 8 5.4 10.2 2.6 9.4 6 11.4 7.6 13 9.6c1.5 1.9 2.6 3.7 2.6 5.9C15.6 19.3 14.2 21.3 12 22Zm0-1.8c1.5-.6 2.2-2 2.2-3.7 0-1.4-.7-2.7-1.9-4.2-.3.9-.9 1.4-1.6 1.7.3-1.1.2-2.3-.4-3.6-1 1.7-1.9 3.3-1.9 5.2 0 2.2 1.4 4.1 3.6 4.6Z"
-        fill="currentColor"
-      />
+      <path d={FENICE_LOGO_PATH} fill="currentColor" />
     </svg>
   )
 }
 
 /**
- * Render the Fenice wordmark as live text (accessible, localizable, and free
- * of upstream vector art) without its independently slotted mark.
+ * Render the Fenice wordmark as clean typography matching the UI theme.
  * @returns the wordmark.
  */
 export function OfficialBrandName() {
   return (
     <span
-      style={{ fontWeight: 700, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}
+      style={{
+        fontWeight: 700,
+        letterSpacing: '0.02em',
+        whiteSpace: 'nowrap',
+        fontSize: '15px',
+      }}
     >
       Fenice
     </span>
