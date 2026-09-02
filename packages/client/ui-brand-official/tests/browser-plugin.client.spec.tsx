@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply, inject } from '../src/client/index.ts'
-import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
+import { OfficialBrandMark, OfficialBrandName, type OfficialBrandNameProps } from '../src/client/Brand.tsx'
 import { apply as hostApply } from '../src/index.ts'
 
 afterEach(() => {
@@ -69,7 +69,8 @@ describe('official browser-brand plugin', () => {
   })
 
   it('renders the official name independently from both requested mark sizes', () => {
-    const name = render(<OfficialBrandName />)
+    const nameProps = { t: (key: string) => (key === 'brand.name' ? 'Fenice' : key) } as unknown as OfficialBrandNameProps
+    const name = render(<OfficialBrandName {...nameProps} />)
     expect(name.container.textContent).toBe('Fenice')
     name.unmount()
 

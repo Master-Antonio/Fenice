@@ -1,3 +1,6 @@
+import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type {} from '@deepseek-ai/dsh-client-locale/client'
+
 export interface OfficialBrandMarkProps {
   size?: number | undefined
   className?: string | undefined
@@ -20,8 +23,7 @@ export function OfficialBrandMark({ size = 24, className }: OfficialBrandMarkPro
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      role="img"
-      aria-label="Fenice"
+      aria-hidden="true"
       className={className}
     >
       <path d={FENICE_LOGO_PATH} fill="currentColor" />
@@ -29,11 +31,17 @@ export function OfficialBrandMark({ size = 24, className }: OfficialBrandMarkPro
   )
 }
 
+/** Props of the official name entry: the runtime seat plus the sidebar locale seat. */
+export type OfficialBrandNameProps = PropsRuntime<'sidebar.brand.name'> & PropsLocale<'sidebar'>
+
 /**
- * Render the Fenice wordmark as clean typography matching the UI theme.
+ * Render the Fenice wordmark as clean typography matching the UI theme. The
+ * name is locale-owned copy (`brand.name`); the registration declares the
+ * sidebar locale namespace.
+ * @param props - Slot runtime seat and the injected `t` translator.
  * @returns the wordmark.
  */
-export function OfficialBrandName() {
+export function OfficialBrandName({ t }: OfficialBrandNameProps) {
   return (
     <span
       style={{
@@ -43,7 +51,7 @@ export function OfficialBrandName() {
         fontSize: '15px',
       }}
     >
-      Fenice
+      {t('brand.name')}
     </span>
   )
 }

@@ -154,10 +154,10 @@ export function SidebarRoot({
               <span className={css.brandName}>
                 {renderSlot('sidebar.brand.name', {}, {
                   fallback: buildVersion === undefined
-                    ? <span className={css.fallbackBrandName}>Fenice</span>
+                    ? <span className={css.fallbackBrandName}>{t('brand.name')}</span>
                     : (
                       <span className={css.localBuildBrand}>
-                        <span className={css.localBuildTitle}>Fenice</span>
+                        <span className={css.localBuildTitle}>{t('brand.name')}</span>
                         <span className={css.buildVersion}>{buildVersion}</span>
                       </span>
                     ),

@@ -31,6 +31,7 @@ export const en = {
   'expand': 'Expand',
   'back': 'Back',
   'brand.localBuild': 'Fenice Local Build',
+  'brand.name': 'Fenice',
   'unknown': 'Unknown',
   'none': 'None',
   'truncated': 'Truncated',
