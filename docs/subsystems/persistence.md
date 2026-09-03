@@ -387,6 +387,15 @@ abstract stat(id: SessionId, options?: SessionPersistenceStatOptions): Promise<S
  * @returns one snapshot per stored session.
  */
 abstract list(options?: SessionPersistenceListOptions): Promise<readonly SessionPersistenceSnapshot[]>
+
+/**
+ * Truncate durably stored events from `fromSeq` onward for one session.
+ * Optional: backends that cannot rewrite their log refuse truncation by
+ * omitting it; callers must treat a missing method as unsupported.
+ * @param id - the persisted session to truncate.
+ * @param fromSeq - first event seq to delete.
+ */
+truncateFrom?(id: SessionId, fromSeq: number): Promise<void>
 ```
 
 Types: [SessionId](core.md)

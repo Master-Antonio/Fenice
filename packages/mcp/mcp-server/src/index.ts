@@ -59,12 +59,20 @@ export class McpServerService extends Service {
     super(ctx, 'mcpServer')
   }
 
-  /** Whether the mcpServer experiment is enabled for this context. */
+  /**
+   * Whether the mcpServer experiment is enabled for this context.
+   * @param options - flag and cancellation overrides for this check.
+   * @returns true when the server may advertise and execute tools.
+   */
   isEnabled(options?: McpToolOptions): boolean {
     return isMcpServerEnabled(this.ctx, { ...this.scoped(), ...options })
   }
 
-  /** Standard MCP tool definitions for the registered DSH tools and session operations. */
+  /**
+   * Standard MCP tool definitions for the registered DSH tools and session operations.
+   * @param options - flag and cancellation overrides for this listing.
+   * @returns one definition per advertised tool, in registry order.
+   */
   getTools(options?: McpToolOptions): readonly McpToolDefinition[] {
     return getMcpToolDefinitions(this.ctx, { ...this.scoped(), ...options })
   }
@@ -84,7 +92,10 @@ export class McpServerService extends Service {
     return executeMcpTool(this.ctx, name, args, { ...this.scoped(), ...options })
   }
 
-  /** The MCP server instance for this service, created on first use. */
+  /**
+   * The MCP server instance for this service, created on first use.
+   * @returns the lazily created server; the same instance on every call.
+   */
   getServer(): McpServer {
     this.server ??= createDshMcpServer(this.ctx, this.config)
     return this.server

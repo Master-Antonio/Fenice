@@ -113,6 +113,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   agentTeams: 'agent-team.md',
   tokenMeter: 'token-meter.md',
   toolResultPruner: 'compaction.md',
+  mcpServer: 'tools.md',
   tools: 'tools.md',
   typert: 'typert.md',
   typertGateway: 'typert.md',
@@ -657,6 +658,12 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   z: 'schemastery schema constructor is owned by vendor/schemastery (vendored upstream)',
+  SessionTruncateRequest: 'flag-gated Fenice truncate RPC is owned by packages/api/session-controller/src/types.ts',
+  SessionTruncateValue: 'flag-gated Fenice truncate RPC is owned by packages/api/session-controller/src/types.ts',
+  McpToolDefinition: 'standard MCP server surface is owned by packages/mcp/mcp-server/src/types.ts',
+  McpToolCallResult: 'standard MCP server surface is owned by packages/mcp/mcp-server/src/types.ts',
+  McpToolOptions: 'standard MCP server surface is owned by packages/mcp/mcp-server/src/types.ts',
+  McpServer: 'standard MCP server class is owned by @modelcontextprotocol/sdk',
   BeginCommandRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   InsertReferenceRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   ConsumeTokenRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',

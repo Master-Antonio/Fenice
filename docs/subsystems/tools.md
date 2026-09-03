@@ -475,6 +475,45 @@ The full presentation field docs live in [`packages/core/tools/src/presentation.
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxmcpserver--mcpserverservice"></a>
+
+### `ctx.mcpServer` — `McpServerService`
+
+Cordis Service providing MCP Server integration.
+
+```ts cordis-catalog
+/**
+ * Whether the mcpServer experiment is enabled for this context.
+ * @param options - flag and cancellation overrides for this check.
+ * @returns true when the server may advertise and execute tools.
+ */
+isEnabled(options?: McpToolOptions): boolean
+
+/**
+ * Standard MCP tool definitions for the registered DSH tools and session operations.
+ * @param options - flag and cancellation overrides for this listing.
+ * @returns one definition per advertised tool, in registry order.
+ */
+getTools(options?: McpToolOptions): readonly McpToolDefinition[]
+
+/**
+ * Execute one tool call formatted according to standard MCP.
+ * @param name - the advertised tool name.
+ * @param args - unvalidated arguments as received from the client.
+ * @param options - flag and cancellation overrides for this call.
+ * @returns the MCP tool result; refusals and failures are `isError` results.
+ */
+executeTool( name: string, args: Record<string, unknown>, options?: McpToolOptions, ): Promise<McpToolCallResult>
+
+/**
+ * The MCP server instance for this service, created on first use.
+ * @returns the lazily created server; the same instance on every call.
+ */
+getServer(): McpServer
+```
+
+Source: [`packages/mcp/mcp-server/src/index.ts`](../../packages/mcp/mcp-server/src/index.ts)
+
 <a id="ctxtools--toolruntime"></a>
 
 ### `ctx.tools` — `ToolRuntime`

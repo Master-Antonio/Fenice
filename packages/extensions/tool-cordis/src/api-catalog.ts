@@ -1206,6 +1206,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'mcpServer',
+    summary: 'Cordis Service providing MCP Server integration.',
+    description: 'Cordis Service providing MCP Server integration.',
+    methods: [
+      {
+        signature: 'isEnabled(options?: McpToolOptions): boolean',
+        description: 'Whether the mcpServer experiment is enabled for this context.',
+        parameters: [{ name: 'options', description: 'flag and cancellation overrides for this check.' }],
+        returns: 'true when the server may advertise and execute tools.',
+      },
+      {
+        signature: 'getTools(options?: McpToolOptions): readonly McpToolDefinition[]',
+        description: 'Standard MCP tool definitions for the registered DSH tools and session operations.',
+        parameters: [{ name: 'options', description: 'flag and cancellation overrides for this listing.' }],
+        returns: 'one definition per advertised tool, in registry order.',
+      },
+      {
+        signature: 'executeTool( name: string, args: Record<string, unknown>, options?: McpToolOptions, ): Promise<McpToolCallResult>',
+        description: 'Execute one tool call formatted according to standard MCP.',
+        parameters: [{ name: 'name', description: 'the advertised tool name.' }, { name: 'args', description: 'unvalidated arguments as received from the client.' }, { name: 'options', description: 'flag and cancellation overrides for this call.' }],
+        returns: 'the MCP tool result; refusals and failures are `isError` results.',
+      },
+      {
+        signature: 'getServer(): McpServer',
+        description: 'The MCP server instance for this service, created on first use.',
+        parameters: [],
+        returns: 'the lazily created server; the same instance on every call.',
+      },
+    ],
+  },
+  {
     key: 'messageFeedback',
     summary: 'Storage-domain sidecar service.',
     description: 'Storage-domain sidecar service. It inspects persisted Session history and never creates or resumes an Agent or Session.',
@@ -1402,6 +1433,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the new Session identity.',
       },
       {
+        signature: '@Remote(\'truncate\') truncate(request: SessionTruncateRequest): Promise<SessionTruncateValue>',
+        description: 'Truncate one Session in place to a completed-turn prefix or turn index.',
+        parameters: [{ name: 'request', description: 'source Session and optional sequence or turn index cutoff.' }],
+        returns: 'the truncated Session identity and cutoff sequence.',
+      },
+      {
         signature: '@Remote(\'prompt\') prompt(request: SessionPromptRequest, signal: AbortSignal): Promise<SessionPromptValue>',
         description: 'Admit one prompt after explicitly resuming its Session.',
         parameters: [{ name: 'request', description: 'Session identity, prompt content, source metadata, and delivery mode.' }, { name: 'signal', description: 'caller cancellation before prompt admission begins.' }],
@@ -1495,6 +1532,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List every stored session visible to this process, in no promised order.',
         parameters: [{ name: 'options', description: 'optional cancellation.' }],
         returns: 'one snapshot per stored session.',
+      },
+      {
+        signature: 'truncateFrom?(id: SessionId, fromSeq: number): Promise<void>',
+        description: 'Truncate durably stored events from `fromSeq` onward for one session. Optional: backends that cannot rewrite their log refuse truncation by omitting it; callers must treat a missing method as unsupported.',
+        parameters: [{ name: 'id', description: 'the persisted session to truncate.' }, { name: 'fromSeq', description: 'first event seq to delete.' }],
       },
     ],
   },
@@ -4333,6 +4375,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
   },
   {
+    name: 'McpContentBlock',
+    declaration: 'export type McpContentBlock = {\n    readonly type: \'text\';\n    readonly text: string;\n} | {\n    readonly type: \'image\';\n    readonly data: string;\n    readonly mimeType: string;\n};',
+  },
+  {
+    name: 'McpServerFlags',
+    declaration: 'export interface McpServerFlags {\n    readonly mcpServer?: boolean;\n}',
+  },
+  {
+    name: 'McpToolCallResult',
+    declaration: 'export interface McpToolCallResult {\n    readonly content: readonly McpContentBlock[];\n    readonly isError?: boolean;\n}',
+  },
+  {
+    name: 'McpToolDefinition',
+    declaration: 'export interface McpToolDefinition {\n    readonly name: string;\n    readonly description?: string;\n    readonly inputSchema: {\n        readonly type: \'object\';\n        readonly properties?: Readonly<Record<string, unknown>>;\n        readonly required?: readonly string[];\n        readonly [key: string]: unknown;\n    };\n}',
+  },
+  {
+    name: 'McpToolOptions',
+    declaration: 'export interface McpToolOptions {\n    readonly scope?: ScopeKey;\n    readonly includeSessionOps?: boolean;\n    readonly flags?: McpServerFlags;\n    readonly signal?: AbortSignal;\n}',
+  },
+  {
     name: 'Message',
     declaration: 'export interface Message {\n    readonly id: MessageId;\n    readonly role: \'system\' | \'user\' | \'assistant\';\n    readonly content: ContentBlock[];\n    readonly source: MessageSource;\n}',
   },
@@ -5187,6 +5249,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionTitleUserMessage',
     declaration: 'export interface SessionTitleUserMessage {\n    readonly seq: SessionSeq;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'SessionTruncateRequest',
+    declaration: 'export interface SessionTruncateRequest {\n    readonly sessionId: SessionId;\n    readonly atSeq?: number;\n    readonly turnIndex?: number;\n    readonly flags?: {\n        readonly sessionTruncate?: boolean;\n    };\n}',
+  },
+  {
+    name: 'SessionTruncateValue',
+    declaration: 'export interface SessionTruncateValue {\n    readonly sessionId: SessionId;\n    readonly truncatedAtSeq: number;\n}',
   },
   {
     name: 'SessionUpdateQueueRequest',
