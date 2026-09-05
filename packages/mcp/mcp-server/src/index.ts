@@ -35,8 +35,11 @@ export interface Config {
   version?: string
   /** Whether the standard `session_*` operations are exposed. Defaults to true. */
   includeSessionOps?: boolean
-  /** Deployment override of the `mcpServer` Agent-Lab experiment switch. */
-  flags?: { mcpServer?: boolean }
+  /** Deployment overrides for experiment switches the Agent Lab also owns. */
+  flags?: {
+    /** Deployment override of the `mcpServer` Agent-Lab experiment switch. */
+    mcpServer?: boolean
+  }
 }
 
 /** Cordis Service providing MCP Server integration. */

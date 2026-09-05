@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-mcp-server
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-mcp-server` publishes the harness's registered tools and session operations over the standard Model Context Protocol, so external MCP clients can drive one Fenice deployment's live tool surface without the TypeScript SDK. It is a Fenice fork addition, not an upstream harness package. The service wraps the ordinary tool registry and session controller — it registers no new model-facing tools of its own, and every call executes through the same permission and approval machinery as a native tool call.
@@ -18,8 +20,8 @@ kind: "package-reference"
 
 -----
 
-<a id="use-this-package"></a>
 ## Use this package
+<a id="use-this-package"></a>
 
 Mount this plugin when an external MCP client should reach Fenice's live tools; keep it unmounted when clients use the SDK or the web app.
 
@@ -38,7 +40,6 @@ Mount this plugin when an external MCP client should reach Fenice's live tools; 
 
 `executeTool` validates tool names against the registered tool surface and returns MCP-formatted `isError` results for refusals instead of throwing across the wire.
 
-<a id="model-experience"></a>
 ## Model Experience
 
 ### External MCP tool access
@@ -55,13 +56,13 @@ Zero live-request tokens for the exposure itself. Tool calls executed by externa
 
 None on live request prefixes; externally driven tool results append to the session exactly like native tool calls, so provider cache reuse follows the ordinary append rules.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
+<a id="known-limitations-and-deferred-work"></a>
 
 - The server is experimental and gated behind `flags.mcpServer`; its tool listing is not a stable public contract, and session operations add no per-operation authorization beyond the ordinary tool machinery.
 - Transport options beyond the SDK defaults and a dedicated subsystems docs page are deferred until the surface stabilizes.
 
-<a id="dev-note"></a>
 ### Dev Note
+<a id="dev-note"></a>
 
 No runtime invariant companion is published because the server delegates every operation to the tools and session-controller services that own their own invariants.

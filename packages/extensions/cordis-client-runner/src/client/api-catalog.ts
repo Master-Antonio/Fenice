@@ -139,9 +139,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['when fields are malformed, the id is occupied, or the fallback target is unknown or creates a cycle.'],
       },
       {
-        signature: 'register<N extends Extract<keyof LocaleNamespaceMap, string>>(ns: N, dicts: Record<BuiltInLocaleId, LocaleDictOf<N>>): () => void',
-        description: 'Register a declared namespace\'s dictionaries, all locales in one call — the typed form: each dictionary is checked against the namespace\'s LocaleNamespaceMap key union (a missing or extra key is a compile error), and every shipped locale is required (bilingual balance enforced at registration). Duplicate (ns, locale) throws (single occupant; a namespace\'s texts have one owner). Registration bumps the revision so mounted outlets pick up late-arriving dictionaries.',
-        parameters: [{ name: 'ns', description: 'a namespace merged into LocaleNamespaceMap.' }, { name: 'dicts', description: 'complete dictionaries keyed by built-in locale id.' }],
+        signature: 'register<N extends Extract<keyof LocaleNamespaceMap, string>>( ns: N, dicts: { zh: LocaleDictOf<N>; en: LocaleDictOf<N> } & Partial<Record<string, LocaleDict>>, ): () => void',
+        description: 'Register a declared namespace\'s dictionaries, all locales in one call — the typed form: `zh`/`en` dictionaries are REQUIRED and each is checked against the namespace\'s LocaleNamespaceMap key union (a missing or extra key is a compile error); the rollout locales are OPTIONAL per namespace, and their missing keys resolve through the English fallback at lookup time. Duplicate (ns, locale) throws (single occupant; a namespace\'s texts have one owner). Registration bumps the revision so mounted outlets pick up late-arriving dictionaries.',
+        parameters: [{ name: 'ns', description: 'a namespace merged into LocaleNamespaceMap.' }, { name: 'dicts', description: 'dictionaries keyed by locale id; rollout ids may be absent.' }],
         returns: 'disposer removing every locale registered by this call (idempotent).',
       },
       {
@@ -250,7 +250,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'setTheme(id: string): void',
-        description: 'Switch the theme preference — the only user preference write entry. Built-in preferences are written through the settings scope and every accepted value emits `theme/change`.',
+        description: 'Switch the theme preference â€” the only user preference write entry. Built-in preferences are written through the settings scope and every accepted value emits `theme/change`.',
         parameters: [{ name: 'id', description: 'a registered theme id or `system`; unknown ids throw.' }],
       },
       {
@@ -266,8 +266,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'overrideTokens(source: string, tokens: ThemeTokenOverrides): () => void',
-        description: 'Stack a token override layer on top of the active theme — the token-level analogue of slot shading: the base theme stays untouched, layers compose in seq order with later layers winning per-token, and removing a layer restores whatever it covered. Calling again with the same source replaces that source\'s whole layer and restacks it on top (effect re-registration semantics). Emits `theme/change` with the recomposed snapshot.',
-        parameters: [{ name: 'source', description: 'layer identity; one layer per source (dynamic packages pass their package id — the façade pins it, so it also names the layer\'s origin for inspection).' }, { name: 'tokens', description: 'token-name → `{ light, dark }` value pairs. Validated at runtime (model-authored callers reach this boundary with untyped JS); a bare string value throws a teaching error.' }],
+        description: 'Stack a token override layer on top of the active theme â€” the token-level analogue of slot shading: the base theme stays untouched, layers compose in seq order with later layers winning per-token, and removing a layer restores whatever it covered. Calling again with the same source replaces that source\'s whole layer and restacks it on top (effect re-registration semantics). Emits `theme/change` with the recomposed snapshot.',
+        parameters: [{ name: 'source', description: 'layer identity; one layer per source (dynamic packages pass their package id â€” the faÃ§ade pins it, so it also names the layer\'s origin for inspection).' }, { name: 'tokens', description: 'token-name â†’ `{ light, dark }` value pairs. Validated at runtime (model-authored callers reach this boundary with untyped JS); a bare string value throws a teaching error.' }],
         returns: 'disposer removing exactly the layer this call created; a no-op once the source has re-overridden (the newer layer is not torn down).',
       },
     ],
@@ -444,10 +444,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'BoundActions',
     declaration: 'export type BoundActions<H> = H extends StoreHandle<infer T, infer A> ? BakedActions<T, A> : never;',
-  },
-  {
-    name: 'BuiltInLocaleId',
-    declaration: 'export type BuiltInLocaleId = typeof LOCALE_IDS[number];',
   },
   {
     name: 'ChainKeysOf',

@@ -664,6 +664,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     consumers: ['tool-cordis'],
     note: 'Registers host inspect providers, mirrors the client provider manifest, and routes client queries through the dynamic Cordis transport.',
   },
+  {
+    key: 'mcpServer',
+    pkg: 'mcp-server',
+    title: 'External MCP tool server',
+    mode: 'core',
+    note: 'Publishes the registered tool surface and opt-in session operations to external MCP clients; every executed call runs through the ordinary permission and approval machinery.',
+  },
 ]
 
 function generatedHeader(title: string): string[] {

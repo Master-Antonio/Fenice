@@ -95,6 +95,13 @@ export interface Config {
    * omission defaults to {@link DEFAULT_MAX_PARALLEL_TOOL_CALLS}.
    */
   maxParallelToolCalls?: number
+  /**
+   * Maximum self-healing retry attempts per turn when selfHealingLoop is active.
+   * Defaults to {@link DEFAULT_MAX_SELF_HEALING_RETRIES}.
+   */
+  maxSelfHealingRetries?: number
+  /** Experiment flags (e.g. tierRouter, selfHealingLoop). */
+  flags?: AgentLoopFlags
   /** Agents created or resumed at plugin startup. */
   agents: (AgentOptions & {
     /** Stable config label used in logs and as the fresh combined-id prefix. */
@@ -107,11 +114,20 @@ export interface Config {
     resumeSessionId?: SessionId
   })[]
 }
+
+/** Experiment switches supported by the agent-loop driver. */
+export interface AgentLoopFlags {
+  /** Route turns through the task-complexity tier router instead of one fixed model. */
+  tierRouter?: boolean
+  /** Retry failed turns through the self-healing path before surfacing the failure. */
+  selfHealingLoop?: boolean
+  [key: string]: boolean | undefined
+}
 ```
 
 Depends on: [`AgentOptions`](subsystems/core.md) · [`SessionId`](subsystems/core.md)
 
-Source: [`packages/core/agent-loop/src/index.ts:318`](../packages/core/agent-loop/src/index.ts)
+Source: [`packages/core/agent-loop/src/index.ts:342`](../packages/core/agent-loop/src/index.ts)
 
 <a id="deepseek-aidsh-agent-presets"></a>
 
@@ -217,7 +233,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/session-controller/src/index.ts:72`](../packages/api/session-controller/src/index.ts)
+Source: [`packages/api/session-controller/src/index.ts:74`](../packages/api/session-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-settings-controller"></a>
 
@@ -1116,6 +1132,12 @@ export interface PiAiProviderProfile {
    * requests instead of being rejected by a request-size cap.
    */
   maxRequestImageBytes?: number
+  /** Maximum characters for inline tool results in context before micro-compaction (default 32,768). */
+  maxToolResultChars?: number
+  /** Secondary provider route to cascade to when primary provider fails with 429/504 or transport error. */
+  fallbackProvider?: string
+  /** Model id to use on fallback provider; defaults to current model id. */
+  fallbackModel?: string
   /** Total-pixel budget for each deterministic inline request version. */
   requestImagePixelBudget?: number
   /**
@@ -1280,7 +1302,7 @@ export type PiAiThinkingFormat = NonNullable<OpenAICompletionsCompat['thinkingFo
 
 Depends on: `Api` (`@earendil-works/pi-ai`) · `CacheRetention` (`@earendil-works/pi-ai`) · `Model` (`@earendil-works/pi-ai`) · `ModelThinkingLevel` (`@earendil-works/pi-ai`) · `OpenAICompletionsCompat` (`@earendil-works/pi-ai`) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` (`@earendil-works/pi-ai`) · `Transport` (`@earendil-works/pi-ai`)
 
-Source: [`packages/llm/llm-pi-ai/src/config.ts:216`](../packages/llm/llm-pi-ai/src/config.ts)
+Source: [`packages/llm/llm-pi-ai/src/config.ts:229`](../packages/llm/llm-pi-ai/src/config.ts)
 
 <a id="deepseek-aidsh-llm-replay"></a>
 
@@ -1486,6 +1508,37 @@ export interface ReconnectConfig {
 ```
 
 Source: [`packages/mcp/mcp-client/src/index.ts:98`](../packages/mcp/mcp-client/src/index.ts)
+
+<a id="deepseek-aidsh-mcp-server"></a>
+
+## `@deepseek-ai/dsh-mcp-server`
+
+Requires: `tools`
+
+```ts config-catalog
+/**
+ * Validated configuration of the MCP server surface.
+ *
+ * `flags.mcpServer` is a deployment-level override for the Agent-Lab switch of
+ * the same name; omitting it (the default) leaves the operator's Agent-Lab
+ * setting in charge, and no wire payload may assert it.
+ */
+export interface Config {
+  /** Server name advertised during the MCP initialize handshake. */
+  name?: string
+  /** Server version advertised during the MCP initialize handshake. */
+  version?: string
+  /** Whether the standard `session_*` operations are exposed. Defaults to true. */
+  includeSessionOps?: boolean
+  /** Deployment overrides for experiment switches the Agent Lab also owns. */
+  flags?: {
+    /** Deployment override of the `mcpServer` Agent-Lab experiment switch. */
+    mcpServer?: boolean
+  }
+}
+```
+
+Source: [`packages/mcp/mcp-server/src/index.ts:31`](../packages/mcp/mcp-server/src/index.ts)
 
 <a id="deepseek-aidsh-message-feedback"></a>
 
@@ -3363,6 +3416,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-client-ui-schedule` ([`packages/client/ui-schedule/src/index.ts`](../packages/client/ui-schedule/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-session` ([`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings` ([`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-settings-agent-lab` ([`packages/client/ui-settings-agent-lab/src/index.ts`](../packages/client/ui-settings-agent-lab/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-general` ([`packages/client/ui-settings-general/src/index.ts`](../packages/client/ui-settings-general/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-models` ([`packages/client/ui-settings-models/src/index.ts`](../packages/client/ui-settings-models/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-plugin-inventory` ([`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts))

@@ -266,7 +266,9 @@ export type { ExecuteToolCallsResult, ToolCallErrorDetail } from './tool-calls.t
 
 /** Experiment switches supported by the agent-loop driver. */
 export interface AgentLoopFlags {
+  /** Route turns through the task-complexity tier router instead of one fixed model. */
   tierRouter?: boolean
+  /** Retry failed turns through the self-healing path before surfacing the failure. */
   selfHealingLoop?: boolean
   [key: string]: boolean | undefined
 }
