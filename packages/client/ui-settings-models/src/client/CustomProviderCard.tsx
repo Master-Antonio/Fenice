@@ -14,11 +14,9 @@
  * and at least one model — are required here rather than at load, so the
  * failure names the field while the user is still looking at it.
  *
- * There is deliberately no reasoning-effort control, here or on the editor
- * card: effort is a per-MODEL capability, and the models under one provider
- * disagree about it, so a provider-scoped control can only be set to a value
- * some of them reject. The composer's model picker offers each model its own
- * levels instead.
+ * Reasoning effort is a per-MODEL capability, so there is no provider-scoped
+ * control here or on the editor card; the model rows below carry their own
+ * reasoning-efforts editor instead, with levels fed by the adapter's schema.
  */
 
 import { useState } from 'react'
@@ -54,6 +52,12 @@ export interface CustomProviderCardProps {
   /** Wire protocols the adapter can serve, in the order it reports them. */
   protocols: readonly string[]
   /**
+   * Reasoning levels one model row may offer, read from the adapter's schema.
+   * An empty list hides the per-row reasoning editor rather than offering
+   * levels the adapter would refuse.
+   */
+  reasoningLevels?: readonly string[]
+  /**
    * Revision of the `llm-pi-ai` user section this card opened at, sent with
    * the create so a route another tab declared meanwhile is a refusal rather
    * than a silent overwrite of its whole profile.
@@ -75,7 +79,7 @@ export interface CustomProviderCardProps {
  * @returns the creation card.
  */
 export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
-  const { taken, protocols, operations, t } = props
+  const { taken, protocols, reasoningLevels, operations, t } = props
   // The write is checked against the revision on which this draft was opened.
   const [openedAt] = useState(() => props.revision)
   const [route, setRoute] = useState('')
@@ -272,6 +276,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
           ...keyValue.length === 0 ? {} : { apiKey: keyValue },
         }}
         probeBlocked={keyFailure === 'keyBlank' ? 'keyBlankNew' : keyFailure}
+        reasoningLevels={reasoningLevels}
         operations={operations}
         t={t}
         disabled={profileDisabled}

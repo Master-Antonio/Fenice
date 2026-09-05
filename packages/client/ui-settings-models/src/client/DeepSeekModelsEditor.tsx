@@ -74,7 +74,35 @@ export interface DeepSeekModelsValidationFailure {
   index: number
   /** Message key owned by the Models settings section. */
   key: 'modelIdRequired' | 'modelIdDuplicate' | 'modelNameInvalid' | 'modelContextInvalid'
-  | 'modelMaxTokensInvalid'
+  | 'modelMaxTokensInvalid' | 'modelReasoningNoLevels' | 'modelReasoningLevelMissing'
+}
+
+/**
+ * Validate one row's reasoning-efforts value against the constraints the
+ * serialized schema cannot express — the same rules the pi-ai adapter enforces
+ * at resolution. Absent keeps the installed catalog's capability and `false`
+ * declares a non-reasoning model; a declared dict must offer at least one level
+ * beyond `off`, and every such level needs the wire value dispatch should send
+ * (`off` alone may be `null`, meaning send nothing).
+ * @param value - the row's `reasoningEfforts`, as stored or drafted.
+ * @returns the message key naming the failure, or `undefined` when valid.
+ */
+function validateRowReasoning(
+  value: unknown,
+): 'modelReasoningNoLevels' | 'modelReasoningLevelMissing' | undefined {
+  if (value === undefined || value === false) return undefined
+  // A valueless YAML key arrives as null, and anything else non-dict declares
+  // nothing usable — the adapter refuses both rather than guessing.
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return 'modelReasoningNoLevels'
+  }
+  let beyondOff = false
+  for (const [level, wire] of Object.entries(value as Record<string, unknown>)) {
+    if (level === 'off') continue
+    if (typeof wire !== 'string' || wire.length === 0) return 'modelReasoningLevelMissing'
+    beyondOff = true
+  }
+  return beyondOff ? undefined : 'modelReasoningNoLevels'
 }
 
 /** Convert a schema-validated catalog value into records without dropping hidden fields. */
@@ -118,6 +146,10 @@ export function validateDeepSeekModels(value: unknown): DeepSeekModelsValidation
       && (typeof maxTokens !== 'number' || !Number.isInteger(maxTokens) || maxTokens <= 0)) {
       return { index, key: 'modelMaxTokensInvalid' }
     }
+    // The DeepSeek layout has no per-model reasoning field, so this only ever
+    // fires on pi-ai rows — the same shared checker keeps both cards honest.
+    const reasoning = validateRowReasoning(model['reasoningEfforts'])
+    if (reasoning !== undefined) return { index, key: reasoning }
   }
   return undefined
 }

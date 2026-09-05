@@ -644,6 +644,23 @@ describe('ModelsSection', () => {
     expect(validateDeepSeekModels([{ id: 'model', maxTokens: 0 }]))
       .toEqual({ index: 0, key: 'modelMaxTokensInvalid' })
     expect(validateDeepSeekModels([{ id: 'model', maxTokens: 8192 }])).toBeUndefined()
+    // Reasoning: absent keeps the catalog capability and `false` disables it.
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: false }])).toBeUndefined()
+    // A valueless YAML key arrives as null and declares nothing usable.
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: null }]))
+      .toEqual({ index: 0, key: 'modelReasoningNoLevels' })
+    // Only `off` is no offer at all.
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: { off: null } }]))
+      .toEqual({ index: 0, key: 'modelReasoningNoLevels' })
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: {} }]))
+      .toEqual({ index: 0, key: 'modelReasoningNoLevels' })
+    // A level beyond `off` without a wire value is a doomed dispatch.
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: { off: null, low: null } }]))
+      .toEqual({ index: 0, key: 'modelReasoningLevelMissing' })
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: { off: null, low: '' } }]))
+      .toEqual({ index: 0, key: 'modelReasoningLevelMissing' })
+    expect(validateDeepSeekModels([{ id: 'model', reasoningEfforts: { off: null, low: 'low' } }]))
+      .toBeUndefined()
   })
 
   it('reads context windows written as counts, thousands, or millions', () => {

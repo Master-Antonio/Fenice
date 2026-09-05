@@ -132,6 +132,31 @@ export function protocolChoices(
   return list.list.map(entry => entry.value).filter((value): value is string => typeof value === 'string')
 }
 
+/**
+ * The reasoning levels one model row may offer, read out of the owning
+ * namespace's own schema — the key union of the model row's `reasoningEfforts`
+ * dict. Like {@link protocolChoices}, this stays a schema read so the levels
+ * the page offers cannot drift from the ones the adapter dispatches: both come
+ * from the same `Config`.
+ * @param namespace - the namespace view whose schema declares the model-row shape.
+ * @param schema - settings schema operations.
+ * @returns the level identifiers in schema order, or an empty list when the
+ *   schema declares no reasoning field.
+ */
+export function reasoningLevelChoices(
+  namespace: SettingsNamespaceView | undefined,
+  schema: SettingsSchemaOperations,
+): string[] {
+  if (namespace === undefined) return []
+  const node = schema.nodeAtPath(
+    schema.rehydrate(namespace.schema),
+    ['providers', PROBE_ROUTE, 'models', '0', 'reasoningEfforts'],
+  )
+  const keys = (node as { sKey?: { type?: string; list?: readonly { value?: unknown }[] } } | undefined)?.sKey
+  if (keys?.type !== 'union' || keys.list === undefined) return []
+  return keys.list.map(entry => entry.value).filter((value): value is string => typeof value === 'string')
+}
+
 /** The credential reference a resolved profile names (its `apiKeyEnv` field). */
 function apiKeyEnvOf(
   namespace: SettingsNamespaceView | undefined,

@@ -108,6 +108,14 @@ export const en = {
   maxToolResultChars: 'Max tool output chars',
   maxToolResultCharsPlaceholder: 'Default: 32768 (smart micro-compaction threshold)',
   fallbackProviderUnknown: 'This route is not among the configured providers; saving will be rejected.',
+  reasoningEfforts: 'Reasoning efforts',
+  reasoningInherit: 'Provider default',
+  reasoningDisabled: 'Disabled (no reasoning)',
+  reasoningCustom: 'Custom levels',
+  reasoningSend: 'Value to send',
+  reasoningOffPlaceholder: 'Empty sends nothing',
+  modelReasoningNoLevels: 'Offer at least one level beyond off, or disable reasoning.',
+  modelReasoningLevelMissing: 'Each level beyond off needs the value to send.',
 }
 
 /** The settings.models namespace key union. */
@@ -221,4 +229,12 @@ export const zh: { [Key in keyof typeof en]: string } = {
   maxToolResultChars: '工具输出最大字符数',
   maxToolResultCharsPlaceholder: '默认：32768（智能微压缩上下文阈值）',
   fallbackProviderUnknown: '该提供方不在已配置的路由中，保存时将被拒绝。',
+  reasoningEfforts: '推理等级',
+  reasoningInherit: '提供方默认',
+  reasoningDisabled: '禁用（不推理）',
+  reasoningCustom: '自定义等级',
+  reasoningSend: '发送的值',
+  reasoningOffPlaceholder: '留空则不发送',
+  modelReasoningNoLevels: '至少提供一个 off 以外的等级，或禁用推理。',
+  modelReasoningLevelMissing: 'off 以外的每个等级都需要填写发送的值。',
 }

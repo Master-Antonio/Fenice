@@ -9,6 +9,12 @@
  * adding a provider is one pass instead of save-then-return; the reply is
  * candidates the user picks from, never configuration written behind them.
  *
+ * Each row's advanced fold also edits its `reasoningEfforts`: the levels a
+ * model offers and the wire value each one sends. The offered levels come from
+ * the adapter's own schema, never a client-owned vocabulary, and the modes
+ * mirror the adapter's resolution — inherit the installed catalog's capability,
+ * declare a non-reasoning model, or name the levels and their spellings.
+ *
  * A provider that cannot be interrogated (an unreachable endpoint, a protocol
  * with no readable listing) is not a dead end: the failure is shown next to the
  * rows the user can still fill in by hand.
@@ -79,6 +85,13 @@ export interface ModelListEditorProps {
    * told what the field already says.
    */
   probeBlocked?: keyof typeof en | undefined
+  /**
+   * The reasoning levels one model row may offer, read from the adapter's own
+   * schema. Omission — or an empty list, from a schema that declares no
+   * reasoning field — hides the control instead of offering levels the
+   * adapter would refuse.
+   */
+  reasoningLevels?: readonly string[] | undefined
   /** The Host operations whose interrogation answers the fetch action. */
   operations: ModelsOperations
   /** Section copy. */
@@ -209,7 +222,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
     })
   }
 
-  const patch = (index: number, next: Record<string, string | number | undefined>): void => {
+  const patch = (index: number, next: Record<string, string | number | boolean | Record<string, unknown> | null | undefined>): void => {
     onChange(models.map((model, at) => {
       if (at !== index) return model
       // Rebuilt rather than spread over: an emptied optional field has to leave
@@ -224,6 +237,63 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
         Object.entries({ ...model, ...next }).filter(([key]) => !cleared.has(key)),
       )
     }))
+  }
+
+  /** The row's `reasoningEfforts` as a plain dict, or empty when it states none. */
+  const reasoningDict = (model: ModelDraft): Record<string, unknown> => {
+    const value = model['reasoningEfforts']
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : {}
+  }
+
+  /** One level's wire spelling as field text; `null` (send nothing) reads as empty. */
+  const wireText = (model: ModelDraft, level: string): string => {
+    const wire = reasoningDict(model)[level]
+    return typeof wire === 'string' ? wire : ''
+  }
+
+  /** What the mode select shows for one row, from the value it stores. */
+  const reasoningModeOf = (model: ModelDraft): 'inherit' | 'disabled' | 'custom' => {
+    const value = model['reasoningEfforts']
+    if (value === false) return 'disabled'
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) return 'custom'
+    return 'inherit'
+  }
+
+  /**
+   * A fresh custom dict: every schema level offered, `off` spelled as nothing
+   * and the rest as themselves — the shape nearly every OpenAI-compatible
+   * gateway accepts, editable from here.
+   */
+  const defaultReasoningEfforts = (): Record<string, unknown> =>
+    Object.fromEntries((props.reasoningLevels ?? []).map(level => [level, level === 'off' ? null : level]))
+
+  const setReasoningMode = (index: number, mode: string): void => {
+    if (mode === 'inherit') patch(index, { reasoningEfforts: undefined })
+    else if (mode === 'disabled') patch(index, { reasoningEfforts: false })
+    else patch(index, { reasoningEfforts: defaultReasoningEfforts() })
+  }
+
+  /** Offer or withdraw one level; a newly offered level defaults to itself. */
+  const toggleReasoningLevel = (index: number, model: ModelDraft, level: string, offered: boolean): void => {
+    const next = { ...reasoningDict(model) }
+    if (offered) next[level] = level === 'off' ? null : level
+    else Reflect.deleteProperty(next, level)
+    patch(index, { reasoningEfforts: next })
+  }
+
+  /**
+   * Rewrite one level's wire spelling. An emptied `off` stores `null` — the
+   * "supported, send nothing" spelling — while any other emptied level simply
+   * leaves the offer, which is also what unchecks its box: an offered level
+   * without a wire value is not a state this editor can store.
+   */
+  const editReasoningWire = (index: number, model: ModelDraft, level: string, text: string): void => {
+    const next = { ...reasoningDict(model) }
+    if (text === '' && level !== 'off') Reflect.deleteProperty(next, level)
+    else next[level] = text === '' ? null : text
+    patch(index, { reasoningEfforts: next })
   }
 
   const fetchModels = async (): Promise<void> => {
@@ -434,6 +504,48 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                     onChange={(event) => { editCapacity(index, 'maxTokens', event.target.value) }}
                   />
                 </label>
+                {props.reasoningLevels === undefined || props.reasoningLevels.length === 0 ? null : (
+                  <div className={styles['reasoningBlock']}>
+                    <label className={styles['modelField']}>
+                      <span className={styles['modelFieldLabel']}>{t('reasoningEfforts')}</span>
+                      <select
+                        className={`${styles['input']} ${styles['selectInput']}`}
+                        value={reasoningModeOf(model)}
+                        aria-label={`${t('reasoningEfforts')} ${index + 1}`}
+                        disabled={disabled}
+                        onChange={(event) => { setReasoningMode(index, event.target.value) }}
+                      >
+                        <option value="inherit">{t('reasoningInherit')}</option>
+                        <option value="disabled">{t('reasoningDisabled')}</option>
+                        <option value="custom">{t('reasoningCustom')}</option>
+                      </select>
+                    </label>
+                    {reasoningModeOf(model) !== 'custom' ? null : props.reasoningLevels.map(level => (
+                      <div className={styles['reasoningRow']} key={level}>
+                        <label className={styles['reasoningLevel']}>
+                          <input
+                            type="checkbox"
+                            checked={level in reasoningDict(model)}
+                            disabled={disabled}
+                            onChange={(event) => { toggleReasoningLevel(index, model, level, event.target.checked) }}
+                          />
+                          <span>{level}</span>
+                        </label>
+                        <input
+                          className={styles['input']}
+                          type="text"
+                          value={wireText(model, level)}
+                          placeholder={level === 'off'
+                            ? t('reasoningOffPlaceholder')
+                            : level}
+                          aria-label={`${t('reasoningSend')} ${level} ${index + 1}`}
+                          disabled={disabled || !(level in reasoningDict(model))}
+                          onChange={(event) => { editReasoningWire(index, model, level, event.target.value) }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )
             : null}

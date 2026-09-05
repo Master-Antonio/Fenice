@@ -112,6 +112,14 @@ const it: Record<ModelsKey, string> = {
   'maxToolResultChars': "Caratteri massimi dell'output degli strumenti",
   'maxToolResultCharsPlaceholder': 'Predefinito: 32768 (soglia di micro-compattazione intelligente)',
   'fallbackProviderUnknown': 'Questo percorso non corrisponde a nessun fornitore configurato; il salvataggio verrà rifiutato.',
+  'reasoningEfforts': 'Livelli di ragionamento',
+  'reasoningInherit': 'Predefinito del fornitore',
+  'reasoningDisabled': 'Disattivato (senza ragionamento)',
+  'reasoningCustom': 'Livelli personalizzati',
+  'reasoningSend': 'Valore da inviare',
+  'reasoningOffPlaceholder': 'Vuoto non invia nulla',
+  'modelReasoningNoLevels': 'Offri almeno un livello oltre a off, o disattiva il ragionamento.',
+  'modelReasoningLevelMissing': 'Ogni livello oltre a off richiede il valore da inviare.',
 }
 
 const de: Record<ModelsKey, string> = {
@@ -221,6 +229,14 @@ const de: Record<ModelsKey, string> = {
   'maxToolResultChars': 'Max. Zeichen der Werkzeugausgabe',
   'maxToolResultCharsPlaceholder': 'Standard: 32768 (Schwelle für intelligente Mikro-Kompaktierung)',
   'fallbackProviderUnknown': 'Diese Route gehört nicht zu den konfigurierten Anbietern; das Speichern wird abgelehnt.',
+  'reasoningEfforts': 'Reasoning-Stufen',
+  'reasoningInherit': 'Anbieter-Standard',
+  'reasoningDisabled': 'Deaktiviert (kein Reasoning)',
+  'reasoningCustom': 'Eigene Stufen',
+  'reasoningSend': 'Zu sendender Wert',
+  'reasoningOffPlaceholder': 'Leer sendet nichts',
+  'modelReasoningNoLevels': 'Biete mindestens eine Stufe außer off an, oder deaktiviere das Reasoning.',
+  'modelReasoningLevelMissing': 'Jede Stufe außer off benötigt den zu sendenden Wert.',
 }
 
 const es: Record<ModelsKey, string> = {
@@ -330,6 +346,14 @@ const es: Record<ModelsKey, string> = {
   'maxToolResultChars': 'Caracteres máximos de salida de herramienta',
   'maxToolResultCharsPlaceholder': 'Predeterminado: 32768 (umbral de micro-compactación inteligente)',
   'fallbackProviderUnknown': 'Esta ruta no está entre los proveedores configurados; el guardado será rechazado.',
+  'reasoningEfforts': 'Niveles de razonamiento',
+  'reasoningInherit': 'Predeterminado del proveedor',
+  'reasoningDisabled': 'Desactivado (sin razonamiento)',
+  'reasoningCustom': 'Niveles personalizados',
+  'reasoningSend': 'Valor a enviar',
+  'reasoningOffPlaceholder': 'Vacío no envía nada',
+  'modelReasoningNoLevels': 'Ofrece al menos un nivel aparte de off, o desactiva el razonamiento.',
+  'modelReasoningLevelMissing': 'Cada nivel aparte de off necesita el valor a enviar.',
 }
 
 const fr: Record<ModelsKey, string> = {
@@ -439,6 +463,14 @@ const fr: Record<ModelsKey, string> = {
   'maxToolResultChars': "Nombre max de caractères de sortie d'outil",
   'maxToolResultCharsPlaceholder': 'Par défaut : 32768 (seuil de micro-compaction intelligente)',
   'fallbackProviderUnknown': "Cette route ne fait pas partie des fournisseurs configurés ; l'enregistrement sera refusé.",
+  'reasoningEfforts': 'Niveaux de raisonnement',
+  'reasoningInherit': 'Par défaut du fournisseur',
+  'reasoningDisabled': 'Désactivé (sans raisonnement)',
+  'reasoningCustom': 'Niveaux personnalisés',
+  'reasoningSend': 'Valeur à envoyer',
+  'reasoningOffPlaceholder': 'Vide ne rien envoyer',
+  'modelReasoningNoLevels': 'Offrez au moins un niveau autre que off, ou désactivez le raisonnement.',
+  'modelReasoningLevelMissing': 'Chaque niveau autre que off requiert la valeur à envoyer.',
 }
 
 const ja: Record<ModelsKey, string> = {
@@ -548,6 +580,14 @@ const ja: Record<ModelsKey, string> = {
   'maxToolResultChars': 'ツール出力の最大文字数',
   'maxToolResultCharsPlaceholder': 'デフォルト: 32768（スマートマイクロ圧縮のしきい値）',
   'fallbackProviderUnknown': 'このルートは設定済みのプロバイダーに含まれていないため、保存は拒否されます。',
+  'reasoningEfforts': '推論レベル',
+  'reasoningInherit': 'プロバイダーのデフォルト',
+  'reasoningDisabled': '無効（推論なし）',
+  'reasoningCustom': 'カスタムレベル',
+  'reasoningSend': '送信する値',
+  'reasoningOffPlaceholder': '空欄で何も送信しない',
+  'modelReasoningNoLevels': 'off 以外のレベルを 1 つ以上指定するか、推論を無効にしてください。',
+  'modelReasoningLevelMissing': 'off 以外の各レベルには、送信する値が必要です。',
 }
 
 /** Per-locale models-settings dictionaries; spread into the register call. */

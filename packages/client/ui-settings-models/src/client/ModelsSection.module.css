@@ -522,6 +522,32 @@
   line-height: 18px;
 }
 
+/* The reasoning-efforts editor spans the row's full advanced grid and stacks
+   its level rows inside it. */
+.reasoningBlock {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 360px;
+}
+
+.reasoningRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reasoningLevel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 96px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
 .modelEmpty {
   padding: 12px;
   border: 1px dashed var(--dsw-alias-border-l3);

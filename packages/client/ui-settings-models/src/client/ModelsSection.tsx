@@ -19,7 +19,7 @@ import type { InjectFace, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-sl
 // Type-only: pulls this package's SlotMap merge (the two Models child slots).
 import type {} from './slot-contract.ts'
 import { CustomProviderCard } from './CustomProviderCard.tsx'
-import { deriveKeyRef, protocolChoices, providerUsable } from './store.ts'
+import { deriveKeyRef, protocolChoices, providerUsable, reasoningLevelChoices } from './store.ts'
 import type { ModelsSettingsStore, ProviderRow } from './store.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
@@ -306,6 +306,8 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   // one whose schema names the protocols one may speak; without it mounted
   // there is nothing to declare and the entry point stays disabled.
   const protocols = protocolChoices(state.namespaces.get('llm-pi-ai'), schema)
+  // The reasoning levels the pi-ai model rows may offer, from the same schema.
+  const reasoningLevels = reasoningLevelChoices(state.namespaces.get('llm-pi-ai'), schema)
 
   return (
     <div className={styles['section']}>
@@ -491,6 +493,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                 <CustomProviderCard
                   taken={state.rows.map(row => row.entry.provider)}
                   protocols={protocols}
+                  reasoningLevels={reasoningLevels}
                   /* v8 ignore next -- the card only opens from a button disabled without this namespace */
                   revision={state.namespaces.get('llm-pi-ai')?.revision ?? 0}
                   operations={operations}
