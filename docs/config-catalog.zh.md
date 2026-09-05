@@ -29,7 +29,7 @@ export interface AcpConfig {
   /** Runtime-only transport override; production uses stdio. */
   stream?: Stream
 }
-```
+`````````
 
 依赖：`Stream`（`@agentclientprotocol/sdk`）
 
@@ -47,7 +47,7 @@ export interface Config {
   /** Provider-owned model id. */
   model: string
 }
-```
+`````````
 
 来源：[`packages/core/agent-default-model/src/index.ts:41`](../packages/core/agent-default-model/src/index.ts)
 
@@ -79,7 +79,7 @@ export interface Config {
    */
   localInstructionFileCandidates?: string[]
 }
-```
+`````````
 
 来源：[`packages/context/agent-instructions/src/config.ts:18`](../packages/context/agent-instructions/src/config.ts)
 
@@ -125,7 +125,7 @@ export interface AgentLoopFlags {
   selfHealingLoop?: boolean
   [key: string]: boolean | undefined
 }
-```
+`````````
 
 依赖：[`AgentOptions`](subsystems/core.zh.md) · [`SessionId`](subsystems/core.zh.md)
 
@@ -173,7 +173,7 @@ export interface PresetRoot {
  * agent, and therefore carries the same trust as shell access.
  */
 export type PresetTrust = 'system' | 'user'
-```
+`````````
 
 来源：[`packages/preset/agent-presets/src/preset.ts:52`](../packages/preset/agent-presets/src/preset.ts)
 
@@ -195,7 +195,7 @@ export interface Config {
    */
   mode: ToolPresentationMode
 }
-```
+`````````
 
 依赖：[`ToolPresentationMode`](subsystems/tools.zh.md)
 
@@ -213,7 +213,7 @@ export interface Config {
   /** WebSocket Ping interval from 1 through 2,147,483,647 milliseconds. @default 2000 */
   readonly websocketHeartbeatIntervalMs?: number
 }
-```
+`````````
 
 来源：[`packages/api/gateway/src/index.ts:119`](../packages/api/gateway/src/index.ts)
 
@@ -221,21 +221,17 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-api-session-controller`
 
-需要：`agentDefaultModel` · `agents` · `attachments` · `llm` · `sessions` · `sessionProjections` · `sessionQuery` · `typert` · `workspaceRegistry`
+需要：`agentDefaultModel` · `agents` · `attachments` · `fileUploads` · `llm` · `sessions` · `sessionProjections` · `sessionQuery` · `typert` · `workspaceRegistry`
 
 ```ts config-catalog
 /** Session Controller deployment policy. */
 export interface Config {
-  /** Maximum stat-reported event count eligible for one full cold projection observation; `0` disables the event-count gate. */
-  readonly coldBlankProbeMaxEvents?: number
-  /** Maximum stat-reported artifact byte size eligible for one full cold projection observation; `0` disables the byte-size gate. */
-  readonly coldBlankProbeMaxBytes?: number
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
 }
-```
+`````````
 
-来源：[`packages/api/session-controller/src/index.ts:74`](../packages/api/session-controller/src/index.ts)
+来源：[`packages/api/session-controller/src/index.ts:71`](../packages/api/session-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-settings-controller"></a>
 
@@ -247,7 +243,7 @@ export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
 }
-```
+`````````
 
 来源：[`packages/api/settings-controller/src/index.ts:36`](../packages/api/settings-controller/src/index.ts)
 
@@ -282,9 +278,9 @@ export interface Config {
   /** Maximum simultaneous normalization or request-image transformations in this service instance. */
   imageCompressionConcurrency?: number
 }
-```
+`````````
 
-来源：[`packages/attachment/attachment-local/src/index.ts:55`](../packages/attachment/attachment-local/src/index.ts)
+来源：[`packages/attachment/attachment-local/src/index.ts:61`](../packages/attachment/attachment-local/src/index.ts)
 
 <a id="deepseek-aidsh-bash-local"></a>
 
@@ -308,7 +304,7 @@ export interface Config {
   /** Grace period for kill escalation and inherited pipes; at most `MAX_TIMER_DELAY_MS`. */
   graceMs?: number
 }
-```
+`````````
 
 来源：[`packages/shell/bash-local/src/index.ts:41`](../packages/shell/bash-local/src/index.ts)
 
@@ -327,7 +323,7 @@ export interface Config {
  * choice is likewise the `ctx.sandbox` provider's config, not this executor's.
  */
 export type Config = LocalConfig
-```
+`````````
 
 依赖：[`LocalConfig`](#deepseek-aidsh-bash-local)
 
@@ -356,9 +352,9 @@ export interface ConnectionConfig {
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
 }
-```
+`````````
 
-来源：[`packages/client/connection/src/index.ts:55`](../packages/client/connection/src/index.ts)
+来源：[`packages/client/connection/src/index.ts:71`](../packages/client/connection/src/index.ts)
 
 <a id="deepseek-aidsh-client-hmr"></a>
 
@@ -372,7 +368,7 @@ export interface Config {
   /** Bundle stat-poll interval in milliseconds (default 500, the build-side watcher's polling default). */
   pollIntervalMs?: number
 }
-```
+`````````
 
 来源：[`packages/client/hmr/src/index.ts:31`](../packages/client/hmr/src/index.ts)
 
@@ -409,7 +405,7 @@ export interface Config {
   /** The worker's max old-generation heap in MiB (`resourceLimits`); overflow kills the worker, surfacing as kind `'worker-exit'`. */
   maxOldGenerationSizeMb?: number
 }
-```
+`````````
 
 来源：[`packages/code-runtime/code-runtime-worker-thread/src/index.ts:25`](../packages/code-runtime/code-runtime-worker-thread/src/index.ts)
 
@@ -455,7 +451,7 @@ export interface ModelCompactPolicyConfig extends CompactionPolicyConfig {
   /** Exact routed model id to match within `provider`. */
   model: string
 }
-```
+`````````
 
 来源：[`packages/compaction/compaction-basic/src/types.ts:38`](../packages/compaction/compaction-basic/src/types.ts)
 
@@ -475,7 +471,7 @@ export interface ToolResultPruneConfig {
   /** Maximum trailing Unicode code points retained. Defaults to `1024`. */
   tailChars?: number
 }
-```
+`````````
 
 来源：[`packages/compaction/compaction-tool-result-pruner/src/types.ts:5`](../packages/compaction/compaction-tool-result-pruner/src/types.ts)
 
@@ -491,7 +487,7 @@ export interface Config {
   /** Maximum synchronous VM evaluation time in milliseconds. */
   vmTimeoutMs?: number
 }
-```
+`````````
 
 来源：[`packages/extensions/cordis-host-runner/src/index.ts:88`](../packages/extensions/cordis-host-runner/src/index.ts)
 
@@ -511,7 +507,7 @@ export interface Config {
   /** Watcher write-settle window in milliseconds; defaults to 100. */
   debounceMs?: number
 }
-```
+`````````
 
 来源：[`packages/credentials/credentials-local/src/index.ts:64`](../packages/credentials/credentials-local/src/index.ts)
 
@@ -529,9 +525,9 @@ export interface Config {
   /** E2B sandbox lifetime in milliseconds; expiry always deletes the sandbox. */
   timeoutMs?: number
 }
-```
+`````````
 
-来源：[`packages/e2b/e2b/src/index.ts:43`](../packages/e2b/e2b/src/index.ts)
+来源：[`packages/e2b/e2b/src/index.ts:45`](../packages/e2b/e2b/src/index.ts)
 
 <a id="deepseek-aidsh-experimental-agent-team"></a>
 
@@ -553,7 +549,7 @@ export interface Config {
   /** Maximum milliseconds allowed for Team-owned runtime disposal. */
   readonly disposalTimeoutMs?: number
 }
-```
+`````````
 
 来源：[`packages/experimental/agent-team/src/types.ts:124`](../packages/experimental/agent-team/src/types.ts)
 
@@ -620,7 +616,7 @@ export interface Config {
    */
   pythonBin?: string
 }
-```
+`````````
 
 来源：[`packages/experimental/code-runtime-python/src/index.ts:42`](../packages/experimental/code-runtime-python/src/index.ts)
 
@@ -688,7 +684,7 @@ export interface InspectorOptions {
   /** Disconnected Cordis snapshots retained after their live realm closes. */
   readonly maxDisconnectedCordisTrees?: number
 }
-```
+`````````
 
 来源：[`packages/experimental/inspector/src/index.ts:66`](../packages/experimental/inspector/src/index.ts)
 
@@ -706,7 +702,7 @@ export interface Config {
   /** Continuable-subagent provider used for completed-prefix fork teammates. */
   readonly forkProvider?: string
 }
-```
+`````````
 
 来源：[`packages/experimental/tool-agent-team/src/index.ts:17`](../packages/experimental/tool-agent-team/src/index.ts)
 
@@ -726,7 +722,7 @@ export interface Config {
   /** Directory basenames never traversed or offered. */
   excludedDirectories?: string[]
 }
-```
+`````````
 
 来源：[`packages/context/file-reference-local/src/index.ts:34`](../packages/context/file-reference-local/src/index.ts)
 
@@ -745,7 +741,7 @@ export interface Config {
    */
   diffBasisMaxBytes?: number
 }
-```
+`````````
 
 来源：[`packages/fs/fs-local/src/index.ts:41`](../packages/fs/fs-local/src/index.ts)
 
@@ -763,7 +759,7 @@ export interface Config {
  * resolves each calling session for every enforcing capability.
  */
 export type Config = LocalConfig
-```
+`````````
 
 依赖：[`LocalConfig`](#deepseek-aidsh-fs-local)
 
@@ -781,7 +777,7 @@ export interface Config {
   /** Total rounds used when a create request omits its own cap. */
   defaultMaxGoalRounds?: number
 }
-```
+`````````
 
 来源：[`packages/goal/goal/src/index.ts:172`](../packages/goal/goal/src/index.ts)
 
@@ -797,7 +793,7 @@ export interface Config {
   /** The prompt text for the single run. */
   task: string
 }
-```
+`````````
 
 来源：[`packages/bundle/headless/src/index.ts:33`](../packages/bundle/headless/src/index.ts)
 
@@ -835,7 +831,7 @@ export interface Config {
   /** Character cap for the `hook/result` event's persisted stderr summary. */
   stderrSummaryMaxChars?: number
 }
-```
+`````````
 
 来源：[`packages/hooks/hooks-claude-code/src/index.ts:45`](../packages/hooks/hooks-claude-code/src/index.ts)
 
@@ -862,7 +858,7 @@ export interface Config {
   /** Character cap for the `hook/result` event's persisted stderr summary. */
   stderrSummaryMaxChars?: number
 }
-```
+`````````
 
 来源：[`packages/hooks/hooks-codex/src/index.ts:44`](../packages/hooks/hooks-codex/src/index.ts)
 
@@ -876,7 +872,7 @@ export interface Config {
   /** Complete-result bound of one listing level; see {@link BrowseDirectoryPicker.Config}. */
   maxEntries: number
 }
-```
+`````````
 
 来源：[`packages/host/directory-picker-browse/src/index.ts:181`](../packages/host/directory-picker-browse/src/index.ts)
 
@@ -892,7 +888,7 @@ export interface Config {
   /** Absolute path of index.html inside the dist root. */
   distIndex: string
 }
-```
+`````````
 
 来源：[`packages/host/frontend-static/src/index.ts:30`](../packages/host/frontend-static/src/index.ts)
 
@@ -914,7 +910,7 @@ export interface Config {
   /** Minimum known response length eligible for gzip; unknown-length streams are eligible. @default 1024 */
   compressionThresholdBytes?: number
 }
-```
+`````````
 
 来源：[`packages/host/webserver/src/index.ts:59`](../packages/host/webserver/src/index.ts)
 
@@ -932,7 +928,7 @@ export interface Config {
   /** Case-sensitive JavaScript regex sources that exclude package names after allowlist matching. */
   readonly package_blocklist?: string[]
 }
-```
+`````````
 
 来源：[`packages/runtime-diagnostics/invariants/src/index.ts:15`](../packages/runtime-diagnostics/invariants/src/index.ts)
 
@@ -949,7 +945,7 @@ export interface Config {
    */
   maxConcurrentJobsPerOwner?: number
 }
-```
+`````````
 
 来源：[`packages/jobs/jobs-local/src/index.ts:31`](../packages/jobs/jobs-local/src/index.ts)
 
@@ -1028,7 +1024,7 @@ export interface DeepSeekCatalogModel {
   /** Encoded-byte target for one deterministic request preview; the smallest quality-ladder output is used when no quality fits. */
   imageMaxBytes?: number
 }
-```
+`````````
 
 依赖：[`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
@@ -1300,11 +1296,11 @@ export type PiAiReasoningEfforts = Partial<Record<ModelThinkingLevel, string | n
 
 /** One reasoning-dispatch wire format a profile may name. */
 export type PiAiThinkingFormat = NonNullable<OpenAICompletionsCompat['thinkingFormat']>
-```
+`````````
 
 依赖：`Api`（`@earendil-works/pi-ai`）· `CacheRetention`（`@earendil-works/pi-ai`）· `Model`（`@earendil-works/pi-ai`）· `ModelThinkingLevel`（`@earendil-works/pi-ai`）· `OpenAICompletionsCompat`（`@earendil-works/pi-ai`）· [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets`（`@earendil-works/pi-ai`）· `Transport`（`@earendil-works/pi-ai`)
 
-来源：[`packages/llm/llm-pi-ai/src/config.ts:229`](../packages/llm/llm-pi-ai/src/config.ts)
+来源：[`packages/llm/llm-pi-ai/src/config.ts:213`](../packages/llm/llm-pi-ai/src/config.ts)
 
 <a id="deepseek-aidsh-llm-replay"></a>
 
@@ -1377,11 +1373,11 @@ export interface ReplayModelConfig {
    */
   defaultReasoningEffort?: string
 }
-```
+`````````
 
 依赖：[`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-来源：[`packages/test-support/llm-replay/src/index.ts:924`](../packages/test-support/llm-replay/src/index.ts)
+来源：[`packages/test-support/llm-replay/src/index.ts:1294`](../packages/test-support/llm-replay/src/index.ts)
 
 <a id="deepseek-aidsh-llm-retry"></a>
 
@@ -1392,7 +1388,7 @@ export interface ReplayModelConfig {
 ```ts config-catalog
 /** This policy executor has no config; providers own `retryPolicy`. */
 export type Config = Readonly<Record<string, never>>
-```
+`````````
 
 来源：[`packages/llm/llm-retry/src/index.ts:25`](../packages/llm/llm-retry/src/index.ts)
 
@@ -1434,7 +1430,7 @@ export interface LspLocalServerConfig {
   /** Request-cancel and SIGTERM→SIGKILL grace (ms). Default 2000. */
   killGraceMs?: number
 }
-```
+`````````
 
 来源：[`packages/lsp/lsp-stdio/src/index.ts:82`](../packages/lsp/lsp-stdio/src/index.ts)
 
@@ -1507,7 +1503,7 @@ export interface ReconnectConfig {
   /** Consecutive failed attempts per outage before giving up for good (default 10). */
   maxAttempts?: number
 }
-```
+`````````
 
 来源：[`packages/mcp/mcp-client/src/index.ts:98`](../packages/mcp/mcp-client/src/index.ts)
 
@@ -1538,7 +1534,7 @@ export interface Config {
     mcpServer?: boolean
   }
 }
-```
+``````
 
 来源：[`packages/mcp/mcp-server/src/index.ts:31`](../packages/mcp/mcp-server/src/index.ts)
 
@@ -1554,7 +1550,7 @@ export interface Config {
   /** Maximum UTF-8 byte length accepted for one note. */
   readonly maxNoteBytes: number
 }
-```
+`````````
 
 来源：[`packages/feedback/message-feedback/src/index.ts:50`](../packages/feedback/message-feedback/src/index.ts)
 
@@ -1591,7 +1587,7 @@ export interface PresetSpec {
   /** One user-facing sentence on what the preset means; omitted when not configured. */
   description?: string
 }
-```
+`````````
 
 依赖：[`ApprovalPolicy`](subsystems/approval.zh.md) · [`SandboxMode`](subsystems/sandbox.zh.md)
 
@@ -1617,7 +1613,7 @@ export interface Config {
   /** Suppress dynamic runtime-context snapshots for this persona's agent scope. */
   includeRuntimeContext?: boolean
 }
-```
+`````````
 
 来源：[`packages/preset/persona/src/index.ts:30`](../packages/preset/persona/src/index.ts)
 
@@ -1633,7 +1629,7 @@ export interface PlanModeConfig {
   /** Guidance rendered as the `plan:policy` prompt section while plan mode is active. */
   section: string
 }
-```
+`````````
 
 来源：[`packages/plan/plan-mode/src/index.ts:63`](../packages/plan/plan-mode/src/index.ts)
 
@@ -1649,7 +1645,7 @@ export interface Config {
   /** Contribute `dsh_plugin_packages` to official DeepSeek requests. Defaults to `true`. */
   enabled?: boolean
 }
-```
+`````````
 
 来源：[`packages/llm/plugin-package-inventory-deepseek/src/index.ts:31`](../packages/llm/plugin-package-inventory-deepseek/src/index.ts)
 
@@ -1682,7 +1678,7 @@ export interface Config {
    */
   pwshPath?: string
 }
-```
+`````````
 
 来源：[`packages/shell/pwsh-local/src/index.ts:58`](../packages/shell/pwsh-local/src/index.ts)
 
@@ -1702,7 +1698,7 @@ export interface Config {
  * executor's.
  */
 export type Config = LocalConfig
-```
+`````````
 
 依赖：[`LocalConfig`](#deepseek-aidsh-pwsh-local)
 
@@ -1738,7 +1734,7 @@ export interface Config {
    */
   argumentsPreviewChars?: number
 }
-```
+`````````
 
 来源：[`packages/guard/repeat-tool-reminder/src/index.ts:28`](../packages/guard/repeat-tool-reminder/src/index.ts)
 
@@ -1770,7 +1766,7 @@ export interface Config {
   /** Positive timeout for each functional probe; zero would mean unbounded to Node. */
   probeTimeoutMs?: number
 }
-```
+`````````
 
 来源：[`packages/sandbox/sandbox-local/src/index.ts:44`](../packages/sandbox/sandbox-local/src/index.ts)
 
@@ -1797,7 +1793,7 @@ export interface Config {
    */
   workspaceRoot?: string
 }
-```
+`````````
 
 依赖：[`SandboxMode`](subsystems/sandbox.zh.md)
 
@@ -1815,7 +1811,7 @@ export interface Config {
   /** Profile name rendered in help and diagnostics (default `sdk`). */
   profile?: string
 }
-```
+`````````
 
 来源：[`packages/bundle/sdk-app/src/index.ts:23`](../packages/bundle/sdk-app/src/index.ts)
 
@@ -1837,7 +1833,7 @@ export interface JsonRpcConfig {
   /** Process-exit override; production uses `process.exit`. */
   exit?: (code: number) => void
 }
-```
+`````````
 
 依赖：`Readable`（`node:stream`）· `Writable`（`node:stream`）
 
@@ -1855,7 +1851,7 @@ export interface Config {
   /** Contribute `dsh_session_log` to official DeepSeek requests. Defaults to `false`. */
   enabled?: boolean
 }
-```
+`````````
 
 来源：[`packages/session/session-log-deepseek/src/index.ts:36`](../packages/session/session-log-deepseek/src/index.ts)
 
@@ -1874,7 +1870,7 @@ export interface Config {
 
 /** Valid fflate DEFLATE levels accepted by session-log export. */
 export type SessionLogCompressionLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
-```
+`````````
 
 来源：[`packages/session-query/session-log-export/src/index.ts:45`](../packages/session-query/session-log-export/src/index.ts)
 
@@ -1883,7 +1879,7 @@ export type SessionLogCompressionLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 ## `@deepseek-ai/dsh-session-persistence-jsonl`
 
 ```ts config-catalog
-/** Plugin config: where the JSONL backend keeps its session logs, and the packed-row write switch. */
+/** Plugin config for the JSONL backend's root and physical encoding. */
 export interface Config {
   /**
    * Root directory for all session files. Required (no default): a default of
@@ -1893,23 +1889,15 @@ export interface Config {
    * readable directory; an absent root is created on first materialization.
    */
   root: string
-  /**
-   * Write runs of consecutive `assistant/chunk` delta events as packed
-   * `text-chunks`/`reasoning-chunks`/`tool-call-chunks` rows (lossless,
-   * ~60% smaller logs measured on a real session). Defaults to true; false
-   * keeps one `SessionEvent` per line for diagnostics. Reading packed rows is
-   * unconditional: a log's layout never depends on this switch.
-   */
-  packChunks?: boolean
   /** Physical encoding; defaults to checksummed Zstandard frames. */
   compression?: JsonlCompression
 }
 
 /** Physical encoding selected for JSONL session artifacts. */
 export type JsonlCompression = 'zstd' | 'none'
-```
+`````````
 
-来源：[`packages/session/session-persistence-jsonl/src/index.ts:73`](../packages/session/session-persistence-jsonl/src/index.ts)
+来源：[`packages/session/session-persistence-jsonl/src/index.ts:85`](../packages/session/session-persistence-jsonl/src/index.ts)
 
 <a id="deepseek-aidsh-session-projection-cache"></a>
 
@@ -1931,9 +1919,9 @@ export interface Config {
   /** Longest time (milliseconds) a dirty checkpoint may stay unwritten between mandatory points. */
   writeIntervalMs: number
 }
-```
+`````````
 
-来源：[`packages/session/session-projection-cache/src/index.ts:55`](../packages/session/session-projection-cache/src/index.ts)
+来源：[`packages/session/session-projection-cache/src/index.ts:63`](../packages/session/session-projection-cache/src/index.ts)
 
 <a id="deepseek-aidsh-session-query-sqlite"></a>
 
@@ -1977,7 +1965,7 @@ export type OpenAt = 'startup' | 'first-search' | 'never'
 
 /** Supported SQLite journal modes. */
 export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
-```
+`````````
 
 依赖：[`SessionQueryConfig`](../packages/session-query/session-query/src/index.ts)
 
@@ -1999,7 +1987,7 @@ export interface Config {
   /** Maximum rendered UTF-8 bytes for one source snapshot. */
   maxReferenceBytes?: number
 }
-```
+`````````
 
 来源：[`packages/context/session-reference/src/config.ts:11`](../packages/context/session-reference/src/config.ts)
 
@@ -2043,7 +2031,7 @@ export enum SessionTelemetryMode {
   FEEDBACK_ONLY = 'FEEDBACK_ONLY',
   DISABLED = 'DISABLED',
 }
-```
+`````````
 
 依赖：`BatchLogRecordProcessorOptions`（`@opentelemetry/sdk-logs`）· `OTLPExporterNodeConfigBase`（`@opentelemetry/otlp-exporter-base`）
 
@@ -2065,7 +2053,7 @@ export interface Config {
   /** Maximum UTF-8 bytes in any accepted title. */
   readonly maxTitleBytes: number
 }
-```
+`````````
 
 来源：[`packages/session/session-title/src/index.ts:56`](../packages/session/session-title/src/index.ts)
 
@@ -2078,7 +2066,7 @@ export interface Config {
 ```ts config-catalog
 /** Required LLM policy; this plugin adds no defaults. */
 export type Config = SessionTitleLlmConfig
-```
+`````````
 
 依赖：[`SessionTitleLlmConfig`](../packages/session/session-title-llm/src/index.ts)
 
@@ -2093,7 +2081,7 @@ export type Config = SessionTitleLlmConfig
 ```ts config-catalog
 /** Required LLM policy; this plugin adds no defaults. */
 export type Config = SessionTitleLlmConfig
-```
+`````````
 
 依赖：[`SessionTitleLlmConfig`](../packages/session/session-title-llm/src/index.ts)
 
@@ -2115,7 +2103,7 @@ export interface Config {
   /** Watcher write-settle window in milliseconds; defaults to 100. */
   debounceMs?: number
 }
-```
+`````````
 
 来源：[`packages/settings/settings-file/src/index.ts:22`](../packages/settings/settings-file/src/index.ts)
 
@@ -2129,7 +2117,7 @@ export interface Config {
   /** DeepSeek Harness home directory exposed as `DSH_HOME`; defaults to `$DSH_HOME` or `~/.dsh`. */
   dshHome?: string
 }
-```
+`````````
 
 来源：[`packages/shell/shell-env/src/index.ts:28`](../packages/shell/shell-env/src/index.ts)
 
@@ -2143,7 +2131,7 @@ export interface Config {
   /** Maximum number of completed cwd/provider catalogs kept in memory. */
   readonly collectCacheMaxEntries?: number
 }
-```
+`````````
 
 来源：[`packages/skill/skill/src/index.ts:280`](../packages/skill/skill/src/index.ts)
 
@@ -2181,7 +2169,7 @@ export interface Config {
   /** Bundled skill root; defaults to `$DSH_BUNDLED_SKILL_DIR` when default roots are included, otherwise mounts none. */
   bundledSkillDir?: string
 }
-```
+`````````
 
 来源：[`packages/skill/skill-filesystem/src/index.ts:49`](../packages/skill/skill-filesystem/src/index.ts)
 
@@ -2210,7 +2198,7 @@ export interface Config {
    */
   cleanupPeriodDays?: number
 }
-```
+`````````
 
 来源：[`packages/spill/spill-local/src/index.ts:31`](../packages/spill/spill-local/src/index.ts)
 
@@ -2230,7 +2218,7 @@ export interface Config {
    */
   maxInlineBytes?: number
 }
-```
+`````````
 
 来源：[`packages/spill/spill-policy/src/index.ts:60`](../packages/spill/spill-policy/src/index.ts)
 
@@ -2253,7 +2241,7 @@ export interface Config {
   /** Per-domain overrides: domain name → backend name. */
   routes?: Record<string, string>
 }
-```
+`````````
 
 来源：[`packages/storage/storage-domain/src/index.ts:52`](../packages/storage/storage-domain/src/index.ts)
 
@@ -2274,7 +2262,7 @@ export interface Config {
   /** Directory holding one `<unit>.json` file (or `<unit>/` tree) per unit. */
   root: string
 }
-```
+`````````
 
 来源：[`packages/storage/storage-json/src/index.ts:28`](../packages/storage/storage-json/src/index.ts)
 
@@ -2314,7 +2302,7 @@ export interface Config {
  * contradicts the durability clause of the KV backend contract.
  */
 export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
-```
+`````````
 
 来源：[`packages/storage/storage-sqlite/src/index.ts:24`](../packages/storage/storage-sqlite/src/index.ts)
 
@@ -2367,7 +2355,7 @@ export interface Config {
 
 /** Fixed response to child permission requests: reject by default, or select the first allow option. */
 export type PermissionPolicy = 'allow' | 'reject'
-```
+`````````
 
 来源：[`packages/subagent/subagent-acp/src/index.ts:27`](../packages/subagent/subagent-acp/src/index.ts)
 
@@ -2402,7 +2390,7 @@ export interface Config {
 
 /** Profile-selectable non-interactive Claude Code permission mode. */
 export type ClaudeCodePermissionMode = typeof CLAUDE_CODE_PERMISSION_MODES[number]
-```
+`````````
 
 来源：[`packages/subagent/subagent-claude-code/src/index.ts:38`](../packages/subagent/subagent-claude-code/src/index.ts)
 
@@ -2435,7 +2423,7 @@ export type CodexPermissionMode =
   | 'never'
   | 'approve-for-me'
   | 'dangerously-bypass-approvals-and-sandbox'
-```
+`````````
 
 来源：[`packages/subagent/subagent-codex/src/index.ts:36`](../packages/subagent/subagent-codex/src/index.ts)
 
@@ -2491,7 +2479,7 @@ export interface Config {
   /** Termination confirmation window (ms), including forced exit on every platform. */
   disposeGraceMs?: number
 }
-```
+`````````
 
 来源：[`packages/subagent/subagent-dsh-sdk/src/index.ts:34`](../packages/subagent/subagent-dsh-sdk/src/index.ts)
 
@@ -2507,7 +2495,7 @@ export interface Config {
   /** Provider name on `ctx.subagents` (default `fork`). */
   providerName: string
 }
-```
+`````````
 
 来源：[`packages/subagent/subagent-fork-in-process/src/index.ts:31`](../packages/subagent/subagent-fork-in-process/src/index.ts)
 
@@ -2523,7 +2511,7 @@ export interface Config {
   /** Provider name on `ctx.subagents` (default `spawn`). */
   providerName: string
 }
-```
+`````````
 
 来源：[`packages/subagent/subagent-spawn-in-process/src/index.ts:25`](../packages/subagent/subagent-spawn-in-process/src/index.ts)
 
@@ -2539,7 +2527,7 @@ export interface Config {
   /** Remote status/liveness poll cadence in milliseconds; each tick is one control-plane request. */
   pollMs?: number
 }
-```
+`````````
 
 来源：[`packages/e2b/subprocess-e2b/src/index.ts:25`](../packages/e2b/subprocess-e2b/src/index.ts)
 
@@ -2566,7 +2554,7 @@ export interface Config {
    */
   toolOrder?: string[]
 }
-```
+`````````
 
 来源：[`packages/core/system-prompt/src/index.ts:237`](../packages/core/system-prompt/src/index.ts)
 
@@ -2616,7 +2604,7 @@ export interface Config {
 
 /** One supported interactive shell dialect. */
 export type ShellDialect = 'bash' | 'pwsh'
-```
+`````````
 
 来源：[`packages/terminal/terminal-bash/src/config.ts:10`](../packages/terminal/terminal-bash/src/config.ts)
 
@@ -2634,7 +2622,7 @@ export interface Config {
   /** Minimum milliseconds between durable injections in one session. Omit or set to 0 to inject at every eligible step. */
   refreshIntervalMs?: number
 }
-```
+`````````
 
 来源：[`packages/context/time-context/src/index.ts:48`](../packages/context/time-context/src/index.ts)
 
@@ -2650,7 +2638,7 @@ export interface Config {
   /** Minimum milliseconds between durable injections in one session. Omit or set to 0 to inject on every eligible change. */
   refreshIntervalMs?: number
 }
-```
+`````````
 
 来源：[`packages/context/tmux-context/src/index.ts:36`](../packages/context/tmux-context/src/index.ts)
 
@@ -2663,7 +2651,7 @@ export interface Config {
 ```ts config-catalog
 /** Token-meter plugin configuration; the fixed estimator has no settings. */
 export type TokenMeterConfig = Record<string, never>
-```
+`````````
 
 来源：[`packages/llm/token-meter/src/types.ts:13`](../packages/llm/token-meter/src/types.ts)
 
@@ -2679,7 +2667,7 @@ export interface Config {
   /** Expose `run_in_background` (default true); disabled calls are also rejected. */
   enableRunInBackground?: boolean
 }
-```
+`````````
 
 来源：[`packages/shell/tool-bash/src/index.ts:33`](../packages/shell/tool-bash/src/index.ts)
 
@@ -2701,7 +2689,7 @@ export interface Config {
   /** Model-facing tool description; deployments may describe their environment. */
   description?: string
 }
-```
+`````````
 
 来源：[`packages/shell/tool-bash-persistent/src/index.ts:432`](../packages/shell/tool-bash-persistent/src/index.ts)
 
@@ -2723,7 +2711,7 @@ export interface Config {
   /** Files at or above this size stream instead of loading whole into memory. */
   readStreamMinSize?: number
 }
-```
+`````````
 
 来源：[`packages/fs/tool-fs/src/index.ts:25`](../packages/fs/tool-fs/src/index.ts)
 
@@ -2758,7 +2746,7 @@ export interface Config {
    */
   timeoutMs?: number
 }
-```
+`````````
 
 来源：[`packages/fs/tool-fs-search/src/index.ts:73`](../packages/fs/tool-fs-search/src/index.ts)
 
@@ -2774,7 +2762,7 @@ export interface Config {
   /** Minimum admitted goal rounds before the model may self-report `blocked`. */
   blockedAfterConsecutiveRounds?: number
 }
-```
+`````````
 
 来源：[`packages/goal/tool-goal/src/index.ts:25`](../packages/goal/tool-goal/src/index.ts)
 
@@ -2808,7 +2796,7 @@ export interface Config {
  * owner. A busy owner is injected either way.
  */
 export type CompletionDelivery = 'quiet' | 'wakeup'
-```
+`````````
 
 来源：[`packages/jobs/tool-jobs/src/index.ts:31`](../packages/jobs/tool-jobs/src/index.ts)
 
@@ -2828,7 +2816,7 @@ export interface Config {
   /** Tool-call timeout budget in ms (default 60000). */
   timeoutMs?: number
 }
-```
+`````````
 
 来源：[`packages/lsp/tool-lsp/src/index.ts:57`](../packages/lsp/tool-lsp/src/index.ts)
 
@@ -2844,7 +2832,7 @@ export interface Config {
   /** Expose `run_in_background` (default true); disabled calls are also rejected. */
   enableRunInBackground?: boolean
 }
-```
+`````````
 
 来源：[`packages/shell/tool-pwsh/src/index.ts:51`](../packages/shell/tool-pwsh/src/index.ts)
 
@@ -2866,7 +2854,7 @@ export interface Config {
   /** Model-facing tool description; deployments may describe their environment. */
   description?: string
 }
-```
+`````````
 
 来源：[`packages/shell/tool-pwsh-persistent/src/index.ts:472`](../packages/shell/tool-pwsh-persistent/src/index.ts)
 
@@ -2888,7 +2876,7 @@ export interface Config {
   /** Maximum characters in a successful parent-facing terminal text (default 16384). */
   maxResultChars?: number
 }
-```
+`````````
 
 来源：[`packages/workflow/tool-ralph/src/index.ts:21`](../packages/workflow/tool-ralph/src/index.ts)
 
@@ -2906,7 +2894,7 @@ export interface Config {
   /** Cooperative full-text search deadline in milliseconds. Defaults to 30000. */
   searchTimeoutMs?: number
 }
-```
+`````````
 
 来源：[`packages/session-query/tool-session-query/src/index.ts:28`](../packages/session-query/tool-session-query/src/index.ts)
 
@@ -2922,7 +2910,7 @@ export interface Config {
   /** Maximum normalized description length rendered in the session catalog; minimum 3. */
   catalogDescriptionMaxLength?: number
 }
-```
+`````````
 
 来源：[`packages/skill/tool-skill/src/index.ts:61`](../packages/skill/tool-skill/src/index.ts)
 
@@ -2940,7 +2928,7 @@ export interface Config {
   /** Model-facing tool description. */
   description?: string
 }
-```
+`````````
 
 来源：[`packages/fs/tool-str-replace-editor/src/index.ts:505`](../packages/fs/tool-str-replace-editor/src/index.ts)
 
@@ -3008,7 +2996,7 @@ export interface Config {
    */
   maxDepth?: number | 'provider-managed'
 }
-```
+`````````
 
 依赖：[`AgentOptions`](subsystems/core.zh.md)
 
@@ -3028,7 +3016,7 @@ export interface Config {
   /** Maximum UTF-8 bytes in one complete terminal or task-output result. */
   maxResultBytes?: number
 }
-```
+`````````
 
 来源：[`packages/terminal/tool-terminal/src/index.ts:35`](../packages/terminal/tool-terminal/src/index.ts)
 
@@ -3050,7 +3038,7 @@ export interface Config {
    */
   allowParallelInProgress: boolean
 }
-```
+`````````
 
 来源：[`packages/todo/tool-todo/src/index.ts:29`](../packages/todo/tool-todo/src/index.ts)
 
@@ -3078,7 +3066,7 @@ export interface Config {
   /** Cap on source characters converted and complete `web_fetch` output characters. Defaults to 200000. */
   fetchMaxOutputChars?: number
 }
-```
+`````````
 
 来源：[`packages/web/tool-web/src/index.ts:37`](../packages/web/tool-web/src/index.ts)
 
@@ -3096,7 +3084,7 @@ export interface Config {
   /** Rendered-result ceiling, in characters: a longer JSON value is truncated with a notice (default 50000). */
   maxResultChars?: number
 }
-```
+`````````
 
 来源：[`packages/workflow/tool-workflow/src/index.ts:32`](../packages/workflow/tool-workflow/src/index.ts)
 
@@ -3132,7 +3120,7 @@ export interface Config {
 
 /** How the registry presents its tools to the model (see {@link Config.mode}). */
 export type ToolPresentationMode = 'native' | 'ptc' | 'both'
-```
+`````````
 
 来源：[`packages/core/tools/src/index.ts:647`](../packages/core/tools/src/index.ts)
 
@@ -3148,7 +3136,7 @@ export interface Config {
   /** Exact npm package names that must resolve and export `./typert`. */
   packages?: string[]
 }
-```
+`````````
 
 来源：[`packages/typert/loader/src/index.ts:47`](../packages/typert/loader/src/index.ts)
 
@@ -3179,7 +3167,7 @@ export interface Config {
  *   the policy whose outcome is knowable without asking.
  */
 export type ApprovalPolicy = 'ask' | 'never'
-```
+`````````
 
 来源：[`packages/interaction/user-approval/src/index.ts:126`](../packages/interaction/user-approval/src/index.ts)
 
@@ -3200,7 +3188,7 @@ export interface WebRuntimeConfig {
   /** Explicit fetch provider id. Omitted = auto-select when exactly one usable. */
   readonly fetchProvider?: string
 }
-```
+`````````
 
 来源：[`packages/web/web/src/index.ts:55`](../packages/web/web/src/index.ts)
 
@@ -3227,7 +3215,7 @@ export interface Config {
   /** Explicit `--trusted-host` authorities from this invocation. */
   trustedHosts: string[]
 }
-```
+`````````
 
 来源：[`packages/bundle/web-app/src/index.ts:44`](../packages/bundle/web-app/src/index.ts)
 
@@ -3251,7 +3239,7 @@ export interface Config {
   /** `User-Agent` header sent on every request. */
   userAgent?: string
 }
-```
+`````````
 
 来源：[`packages/web/web-fetch-http/src/index.ts:32`](../packages/web/web-fetch-http/src/index.ts)
 
@@ -3279,7 +3267,7 @@ export interface Config {
   /** Maximum `web_search` server-tool uses per request. Defaults to 5. */
   maxUses?: number
 }
-```
+`````````
 
 来源：[`packages/web/web-search-deepseek/src/index.ts:46`](../packages/web/web-search-deepseek/src/index.ts)
 
@@ -3303,7 +3291,7 @@ export interface Config {
   /** Highlight sentences requested per result. Defaults to 1. */
   highlightsPerResult?: number
 }
-```
+`````````
 
 来源：[`packages/web/web-search-exa/src/index.ts:35`](../packages/web/web-search-exa/src/index.ts)
 
@@ -3327,7 +3315,7 @@ export interface Config {
   /** Recency window sent as `search_recency_filter`. Omitted = no filter. */
   searchRecency?: 'day' | 'week' | 'month' | 'year'
 }
-```
+`````````
 
 来源：[`packages/web/web-search-perplexity/src/index.ts:30`](../packages/web/web-search-perplexity/src/index.ts)
 
@@ -3349,7 +3337,7 @@ export interface Config {
   /** Positive raw body ceiling in bytes. */
   readonly maxBodyBytes: number
 }
-```
+`````````
 
 来源：[`packages/webhook/webhook-github/src/index.ts:17`](../packages/webhook/webhook-github/src/index.ts)
 
@@ -3379,7 +3367,7 @@ export interface Config {
    */
   disposeGraceMs?: number
 }
-```
+`````````
 
 来源：[`packages/workflow/workflow-worker-thread/src/index.ts:32`](../packages/workflow/workflow-worker-thread/src/index.ts)
 
@@ -3392,6 +3380,7 @@ export interface Config {
 - `@deepseek-ai/dsh-api-remotes` — 需要 `typertGateway`（[`packages/api/remotes/src/index.ts`](../packages/api/remotes/src/index.ts)）
 - `@deepseek-ai/dsh-api-workspace-controller` — 需要 `typert` · `workspaceRegistry`（[`packages/api/workspace-controller/src/index.ts`](../packages/api/workspace-controller/src/index.ts)）
 - `@deepseek-ai/dsh-authorization` — 需要 `credentials`（[`packages/credentials/authorization/src/index.ts`](../packages/credentials/authorization/src/index.ts)）
+- `@deepseek-ai/dsh-client-file-upload` — 需要 `agents` · `attachments` · `commands` · `connection`（[`packages/client/file-upload/src/index.ts`](../packages/client/file-upload/src/index.ts)）
 - `@deepseek-ai/dsh-client-locale`（[`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts)）
 - `@deepseek-ai/dsh-client-modules` — 需要 `webServer` · `loader`（[`packages/client/modules/src/index.ts`](../packages/client/modules/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-agent-preset`（[`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts)）
@@ -3509,6 +3498,7 @@ export interface Config {
 - `@deepseek-ai/dsh-experimental-webworker-runtime`（[`packages/experimental/webworker-runtime/src/index.ts`](../packages/experimental/webworker-runtime/src/index.ts)）
 - `@deepseek-ai/dsh-home-paths`（[`packages/util/home-paths/src/index.ts`](../packages/util/home-paths/src/index.ts)）
 - `@deepseek-ai/dsh-hook-protocol`（[`packages/hooks/hook-protocol/src/index.ts`](../packages/hooks/hook-protocol/src/index.ts)）
+- `@deepseek-ai/dsh-http-proxy`（[`packages/util/http-proxy/src/index.ts`](../packages/util/http-proxy/src/index.ts)）
 - `@deepseek-ai/dsh-launch-environment`（[`packages/util/launch-environment/src/index.ts`](../packages/util/launch-environment/src/index.ts)）
 - `@deepseek-ai/dsh-llm-mock-server`（[`packages/test-support/llm-mock-server/src/index.ts`](../packages/test-support/llm-mock-server/src/index.ts)）
 - `@deepseek-ai/dsh-loader-smoke`（[`packages/test-support/loader-smoke/src/index.ts`](../packages/test-support/loader-smoke/src/index.ts)）
@@ -3519,6 +3509,10 @@ export interface Config {
 - `@deepseek-ai/dsh-sdk-client`（[`packages/sdk/client/src/index.ts`](../packages/sdk/client/src/index.ts)）
 - `@deepseek-ai/dsh-sdk-minimal`（[`packages/bundle/sdk-minimal/src/index.ts`](../packages/bundle/sdk-minimal/src/index.ts)）
 - `@deepseek-ai/dsh-sdk-protocol`（[`packages/sdk/protocol/src/index.ts`](../packages/sdk/protocol/src/index.ts)）
+- `@deepseek-ai/dsh-session-format`（[`packages/session/session-format/src/index.ts`](../packages/session/session-format/src/index.ts)）
+- `@deepseek-ai/dsh-session-format-catalog`（[`packages/session/session-format-catalog/src/index.ts`](../packages/session/session-format-catalog/src/index.ts)）
+- `@deepseek-ai/dsh-session-format-v0-to-v1`（[`packages/session/session-format-v0-to-v1/src/index.ts`](../packages/session/session-format-v0-to-v1/src/index.ts)）
+- `@deepseek-ai/dsh-session-format-v1-to-v2`（[`packages/session/session-format-v1-to-v2/src/index.ts`](../packages/session/session-format-v1-to-v2/src/index.ts)）
 - `@deepseek-ai/dsh-session-snapshot`（[`packages/test-support/session-snapshot/src/index.ts`](../packages/test-support/session-snapshot/src/index.ts)）
 - `@deepseek-ai/dsh-session-telemetry`（[`packages/session/session-telemetry/src/index.ts`](../packages/session/session-telemetry/src/index.ts)）
 - `@deepseek-ai/dsh-session-title-llm`（[`packages/session/session-title-llm/src/index.ts`](../packages/session/session-title-llm/src/index.ts)）

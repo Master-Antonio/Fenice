@@ -218,7 +218,7 @@ describe('promptCacheStablePrefix unit tests', () => {
           turnTelemetry: true,
         }),
         onTurnTelemetry: (detail) => {
-          turnEvents.push(detail as Record<string, unknown>)
+          turnEvents.push(detail)
         },
       })
 

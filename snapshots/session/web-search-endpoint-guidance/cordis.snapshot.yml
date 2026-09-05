@@ -27,6 +27,9 @@
 
 - id: web-search-deepseek
   name: '@deepseek-ai/dsh-web-search-deepseek'
+  # Fenice ships this provider disabled in the base bundle; the scenario owns
+  # its endpoint and key, so the replay explicitly re-enables it.
+  disabled: false
   config:
     apiKey: snapshot-key
     # The fixture maps this recorded authority to its OS-assigned listener.

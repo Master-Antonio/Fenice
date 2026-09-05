@@ -180,7 +180,7 @@ describe('PiAiAdapter with tierRouter flag in stream and telemetry', () => {
         semanticMemory: false,
         selfHealingLoop: false,
       }),
-      onTurnTelemetry: (detail) => { turns.push(detail as Record<string, unknown>) },
+      onTurnTelemetry: (detail) => { turns.push(detail) },
     })
 
     // 1. Fast query

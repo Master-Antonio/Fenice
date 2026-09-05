@@ -68,7 +68,7 @@ export function compactToolResultText(
 ): string {
   const options: CompactionOptions = typeof maxCharsOrOptions === 'number'
     ? { maxChars: maxCharsOrOptions, ...legacyOptions }
-    : (maxCharsOrOptions ?? {})
+    : maxCharsOrOptions
 
   const maxChars = options.maxChars ?? DEFAULT_MAX_TOOL_RESULT_CHARS
   if (raw.length <= maxChars) return raw

@@ -176,13 +176,16 @@ async function runGroup(
       // oxlint-disable-next-line typescript/no-non-null-assertion -- bounded index
       appendToolResult(session, turn, step, call!.block, result, callSeqs[committed]!)
 
-      const isError = result.isError === true
-        || result.error !== undefined
-        || (result.meta !== undefined && result.meta !== null && typeof result.meta === 'object' && 'exitCode' in result.meta && typeof (result.meta as { exitCode?: unknown }).exitCode === 'number' && (result.meta as { exitCode: number }).exitCode !== 0)
+      // A non-zero exitCode in the meta marks a process-managed failure even
+      // when the tool itself reported success.
+      const exitCode = typeof result.meta === 'object' && result.meta !== null && 'exitCode' in result.meta
+        ? (result.meta as { exitCode?: unknown }).exitCode
+        : undefined
+      const isError = result.isError || (typeof exitCode === 'number' && exitCode !== 0)
 
       if (isError && !aborted) {
         const textContent = Array.isArray(result.content)
-          ? result.content.map(c => typeof c === 'object' && c !== null && 'text' in c ? String((c as { text: unknown }).text) : '').join('\n').trim()
+          ? result.content.map(c => 'text' in c ? String((c as { text: unknown }).text) : '').join('\n').trim()
           : ''
         const errorMessage = result.error?.message || textContent || 'Tool execution returned an error'
         groupErrors.push({

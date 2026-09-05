@@ -175,13 +175,16 @@ async function raceAbortCall<T>(
       : new Error(`agent "${id}" creation aborted`, { cause: signal.reason })
   }
   const pending = Promise.resolve().then(operation)
+  // The release rides the abort event itself: an abort during the race rejects
+  // it, and the value that arrives afterwards is released instead of leaking.
+  const releaseOnAbort = releaseAbandoned === undefined
+    ? undefined
+    : () => { void pending.then(releaseAbandoned, () => undefined) }
+  if (releaseOnAbort !== undefined) signal.addEventListener('abort', releaseOnAbort, { once: true })
   try {
     return await raceAbort(pending, signal, id)
-  } catch (error: unknown) {
-    if (signal.aborted && releaseAbandoned !== undefined) {
-      void pending.then(releaseAbandoned, () => undefined)
-    }
-    throw error
+  } finally {
+    if (releaseOnAbort !== undefined) signal.removeEventListener('abort', releaseOnAbort)
   }
 }
 
