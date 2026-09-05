@@ -3068,7 +3068,7 @@ export interface Config {
 }
 `````````
 
-来源：[`packages/web/tool-web/src/index.ts:37`](../packages/web/tool-web/src/index.ts)
+来源：[`packages/web/tool-web/src/index.ts:40`](../packages/web/tool-web/src/index.ts)
 
 <a id="deepseek-aidsh-tool-workflow"></a>
 

@@ -249,6 +249,31 @@ describe('fetch formatting', () => {
     expect(tiny).toBe('Fetched ht')
   })
 
+  it('keeps head and tail with an elision marker when the cap cuts a large body', () => {
+    const out = formatFetchOutput({
+      url: 'https://a.test', statusCode: 200, truncated: false,
+      body: { kind: 'text', content: `${'A'.repeat(4000)}${'B'.repeat(4000)}` },
+    }, 500)
+    expect(out.length).toBeLessThanOrEqual(500)
+    // The head keeps the start of the body and the tail keeps its end: for
+    // rendered documents the conclusion sits at the end as often as the
+    // answer sits at the start.
+    expect(out.startsWith(`${HEADER}AAAA`)).toBe(true)
+    expect(out).toContain('content elided')
+    expect(out).toContain('BBBB')
+    expect(out).toContain('Content truncated')
+  })
+
+  it('falls back to a plain head cut when the cap cannot fit the elision marker', () => {
+    const out = formatFetchOutput({
+      url: 'https://a.test', statusCode: 200, truncated: true,
+      body: { kind: 'text', content: 'abcdef' },
+    }, 90)
+    expect(out.length).toBeLessThanOrEqual(90)
+    expect(out).not.toContain('content elided')
+    expect(out).toContain('Content truncated')
+  })
+
   it('dispatches text and html bodies', () => {
     expect(formatFetchOutput({
       url: 'https://a.test', statusCode: 200, truncated: false,

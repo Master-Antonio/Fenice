@@ -174,6 +174,32 @@ export function snapshotJsonValue<T>(value: T): T | undefined {
 }
 
 /**
+ * Validate, detach, and canonicalize lossless JSON: every plain object is
+ * rebuilt with its keys in sorted order, so two structurally equal values
+ * serialize to identical text regardless of insertion order. Arrays keep their
+ * order; sorting is the whole point.
+ * @param value - candidate value to validate, detach, and canonicalize.
+ * @returns the canonical detached snapshot, or `undefined` when the value is
+ *   not losslessly JSON-serializable.
+ */
+export function canonicalizeJsonValue<T>(value: T): T | undefined {
+  const snapshot = snapshotJsonValue(value)
+  if (snapshot === undefined) return undefined
+  const sort = (node: JsonValue): JsonValue => {
+    if (Array.isArray(node)) return node.map(sort)
+    if (typeof node === 'object' && node !== null) {
+      const sorted: { [key: string]: JsonValue } = {}
+      for (const [key, child] of Object.entries(node).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+        sorted[key] = sort(child)
+      }
+      return sorted
+    }
+    return node
+  }
+  return sort(snapshot as JsonValue) as T
+}
+
+/**
  * Test the same lossless JSON rules as {@link snapshotJsonValue} without detaching the value.
  * @param value - candidate value to test.
  * @returns whether the value survives a JSON round trip without loss.

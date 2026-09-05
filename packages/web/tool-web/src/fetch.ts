@@ -240,10 +240,14 @@ interface RenderedBody {
  *   raw active markup never reaches the model-facing result.
  */
 function renderBody(body: WebFetchBody, maxInputChars: number): RenderedBody {
-  const content = body.content.slice(0, maxInputChars)
-  const sourceTruncated = content.length !== body.content.length
   switch (body.kind) {
     case 'html':
+    // Head-only source cut for markup: a mid-document seam can break the
+    // downstream tag-matching conversion, which would omit the page
+    // entirely — worse than losing the tail.
+    {
+      const content = body.content.slice(0, maxInputChars)
+      const sourceTruncated = content.length !== body.content.length
       if (exceedsConversionDepth(content)) return { text: '[HTML content omitted: unable to convert safely.]', sourceTruncated }
       try {
         return { text: turndown.turndown(content), sourceTruncated }
@@ -253,8 +257,18 @@ function renderBody(body: WebFetchBody, maxInputChars: number): RenderedBody {
         // structured upstream; conversion failure returns no source markup.
         return { text: '[HTML content omitted: unable to convert safely.]', sourceTruncated }
       }
-    case 'text':
-      return { text: content, sourceTruncated }
+    }
+    case 'text': {
+      // Plain text survives a mid-document seam, so the cut keeps head and
+      // tail: the end of the content carries the conclusion as often as the
+      // start carries the answer.
+      const sourceTruncated = body.content.length > maxInputChars
+      if (!sourceTruncated) return { text: body.content, sourceTruncated }
+      const kept = maxInputChars - ELISION_MARKER.length
+      const head = body.content.slice(0, Math.floor(kept * 0.7))
+      const tail = body.content.slice(body.content.length - Math.ceil(kept * 0.3))
+      return { text: `${head}${ELISION_MARKER}${tail}`, sourceTruncated }
+    }
     /* v8 ignore next 2 -- WebFetchBody is a closed union; this arm is unreachable and only makes adding a kind a compile error. */
     default:
       return assertNever(body, 'unhandled web fetch body kind')
@@ -317,6 +331,9 @@ function renderFetchOutput(result: WebFetchResult, maxOutputChars: number): Rend
  */
 const renderCache = new WeakMap<WebFetchResult, Map<number, RenderedFetch>>()
 
+/** The elision marker separating the kept head from the kept tail of a cut output. */
+const ELISION_MARKER = '\n\n[… content elided …]\n\n'
+
 /**
  * The uncached conversion behind {@link renderFetchOutput}. Separated so the
  * memo wraps exactly one call site and the conversion logic stays pure.
@@ -333,7 +350,18 @@ function computeFetchOutput(result: WebFetchResult, maxOutputChars: number): Ren
   const full = `${prefix}${truncated ? TRUNCATION_FOOTER : ''}`
   if (full.length <= maxOutputChars) return { text: full, truncated }
   if (maxOutputChars < TRUNCATION_FOOTER.length) return { text: full.slice(0, maxOutputChars), truncated }
-  return { text: `${prefix.slice(0, maxOutputChars - TRUNCATION_FOOTER.length)}${TRUNCATION_FOOTER}`, truncated }
+  // Head-and-tail cut instead of head-only: for rendered documents the end of
+  // the page carries the conclusion as often as the start carries the answer.
+  // 70/30 biases toward the head, where titles and lead sections live, while
+  // keeping enough tail to close code blocks, tables, and result lists.
+  const contentBudget = maxOutputChars - TRUNCATION_FOOTER.length
+  const marker = ELISION_MARKER.length
+  if (contentBudget <= marker) {
+    return { text: `${prefix.slice(0, contentBudget)}${TRUNCATION_FOOTER}`, truncated }
+  }
+  const head = prefix.slice(0, Math.floor((contentBudget - marker) * 0.7))
+  const tail = prefix.slice(prefix.length - Math.ceil((contentBudget - marker) * 0.3))
+  return { text: `${head}${ELISION_MARKER}${tail}${TRUNCATION_FOOTER}`, truncated }
 }
 
 /**

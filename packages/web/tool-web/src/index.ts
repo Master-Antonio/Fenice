@@ -28,10 +28,13 @@ export const DEFAULT_WEB_TOOL_TIMEOUT_MS = 30_000
 
 /**
  * Default cap on one `web_fetch` output and on source characters converted
- * synchronously. This leaves headroom above the local provider's default
- * 100,000-character body cap while bounding custom providers and rendered output.
+ * synchronously. Aligned with the pi-ai route's `maxToolResultChars` wire
+ * budget: under the old 200,000-character default one large fetch spent six
+ * times that budget on a single result and kept the mass in the session log
+ * for the rest of the session. Custom providers raising this cap own the
+ * trade-off.
  */
-export const DEFAULT_FETCH_MAX_OUTPUT_CHARS = 200_000
+export const DEFAULT_FETCH_MAX_OUTPUT_CHARS = 32_768
 
 /** Plugin config: which web tools to register, search bounds, per-tool budgets, and the fetch output cap. */
 export interface Config {

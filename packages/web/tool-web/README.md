@@ -49,7 +49,7 @@ Load the web service, at least one backend, and this package; both tools registe
 | `searchMaxQueries` | `4` | Upper bound on queries accepted by one `web_search` call; the value appears in prompt guidance and schema descriptions |
 | `fetchTimeoutMs` | `30000` | Cooperative tool-call timeout budget (ms) for `web_fetch` |
 | `searchTimeoutMs` | `30000` | Cooperative tool-call timeout budget (ms) for `web_search` |
-| `fetchMaxOutputChars` | `200000` | Cap on source characters converted synchronously and on one complete `web_fetch` output |
+| `fetchMaxOutputChars` | `32768` | Cap on source characters converted synchronously and on one complete `web_fetch` output |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-tool-web) is the exhaustive source for every accepted field and its JSDoc. `searchMaxQueries` bounds the accepted array before exact-string deduplication and provider fan-out; validation rejects an oversized array before any search starts. The timeout budgets attach to each tool definition and are enforced by [`@deepseek-ai/dsh-tool-call-timeout-policy`](../../guard/timeout-policy/README.md); the model-facing schemas expose no timeout argument.
 

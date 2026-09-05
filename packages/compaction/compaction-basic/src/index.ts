@@ -277,11 +277,23 @@ export class BasicCompactionEngine extends CompactionEngine {
     }
 
     // Pruning is optional so compaction-basic remains independently composable.
-    // Overflow always qualifies; pressure first resolves the routed model's
-    // capacity and checks its target-specific threshold.
+    // It runs on EVERY invocation, before any threshold check: the model-free
+    // pass is idempotent once results are under the prune cap, and landing it
+    // per step keeps oversized tool results from accumulating in the first
+    // place instead of being recovered from under summary pressure later.
+    // Without pressure the pass only rewrites freshly oversized results, so
+    // the steady-state cost is one scan per step and zero new events. The
+    // most recent result stays intact while stepping — the model may be
+    // working from it this very turn; cutting the freshest result underneath
+    // the conversation is the one way this pass could cost quality.
     const prune = this.ctx.get('toolResultPruner')
+    if (prune !== undefined) {
+      prune.pruneSession(agent.session, { keepLatest: true })
+      measurement = meter.measure(agent.session)
+    }
 
     if (trigger === 'context-overflow') {
+      // Recovery needs maximal relief: prune the freshest result too.
       if (prune !== undefined) {
         prune.pruneSession(agent.session)
         measurement = meter.measure(agent.session)
@@ -304,8 +316,10 @@ export class BasicCompactionEngine extends CompactionEngine {
     const spec = resolveCompactSpec(policy, context.contextWindow)
     if (measurement.totalTokens < spec.thresholdTokens) return null
 
-    // Once pressure qualifies, land the model-free pass before choosing a
-    // summary range, then remeasure through the singleton replay fold.
+    // Pressure qualifies: land the full model-free pass — the freshest result
+    // included — before choosing a summary range, then remeasure through the
+    // singleton replay fold. Under real pressure, maximal relief wins over
+    // keeping the latest result verbatim.
     if (prune !== undefined) {
       prune.pruneSession(agent.session)
       measurement = meter.measure(agent.session)

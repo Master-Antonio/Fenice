@@ -8,6 +8,7 @@
 
 import { contentHasImage, LlmError, offloadedImageText, offloadRequestImagesWithPolicy, requestImageHandleText } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, GenerateOptions, ImageAttachmentAccessResolver, Message } from '@deepseek-ai/dsh-llm'
+import { canonicalizeJsonValue } from '@deepseek-ai/dsh-util-values'
 import type { ImageAttachmentRef, RequestImageAttachment } from '@deepseek-ai/dsh-attachment'
 import type {
   WireImageContentPart,
@@ -345,14 +346,24 @@ function requestWithMessages(
   messages: WireMessage[],
   defaults: RequestDefaults,
 ): WireRequest {
-  const tools: WireTool[] | undefined = options.tools?.map(tool => ({
-    type: 'function',
-    function: {
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
-    },
-  }))
+  // Canonical key order on the wire: structurally equal schemas serialize to
+  // identical text across restarts and config merges, which is what keeps the
+  // provider's automatic prompt cache keyed on a byte-stable prefix. The
+  // session log keeps declaration order — only the wire is canonicalized.
+  const tools: WireTool[] | undefined = options.tools?.map((tool) => {
+    const parameters = canonicalizeJsonValue(tool.parameters)
+    if (parameters === undefined) {
+      throw new Error(`tool "${tool.name}" schema parameters must be lossless JSON before serialization`)
+    }
+    return {
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters,
+      },
+    }
+  })
   const resolvedThinking = resolveThinking(options, defaults)
   return {
     model: options.model,

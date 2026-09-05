@@ -86,7 +86,7 @@ With `dsh-command-compact` mounted, type `/compact` in a chat UI to condense imm
 
 ### Trimming oversized tool outputs
 
-Mount `dsh-compaction-tool-result-pruner` before this package to trim oversized tool results as part of condensation. Trimming makes no model call and can remove the need to summarize at all: when the trimmed conversation fits within the threshold, condensation skips the summary. Trimming only runs after a condensation trigger qualifies — a below-pressure conversation is never touched.
+Mount `dsh-compaction-tool-result-pruner` before this package to trim oversized tool results as part of condensation. Trimming makes no model call and can remove the need to summarize at all: when the trimmed conversation fits within the threshold, condensation skips the summary. The trim pass runs on every automatic trigger check — a below-pressure conversation gets its freshly oversized results pruned too, so their mass never rides along in the requests between steps. The most recent tool result is always spared while stepping (the model may be working from it this very turn); only context-overflow recovery prunes the freshest result too. The pass is idempotent and only rewrites results still over the prune cap.
 
 -----
 

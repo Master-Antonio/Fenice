@@ -122,28 +122,40 @@ export class ToolResultPruner extends Service {
   }
 
   /**
-   * Prune every over-budget tool result from one stable current-surface snapshot.
+   * Prune over-budget tool results from one stable current-surface snapshot.
    * Each replacement preserves the complete event data except for `content`,
    * cites the shadowed node so replay can recover the replacement input, and is
    * immediately preceded by a `compaction/prune` shadow-price event pricing the
    * shadowed node through the injected token meter, so pure consumers can
    * subtract it without per-node state.
    * @param session - session whose current surface is rewritten.
+   * @param options - `keepLatest` keeps the most recent tool result intact
+   *   even when over budget, so a result the model is about to work with is
+   *   not cut underneath it; recovery passes that need maximal relief omit it.
    * @returns landed replacements and aggregate Unicode-code-point savings.
    * @throws when the session rejects a replacement; replacements committed
    * earlier in the pass remain durable.
    */
-  pruneSession(session: Session): PruneResult {
+  pruneSession(session: Session, options?: { keepLatest?: boolean }): PruneResult {
     const candidates: SnapshotCandidate[] = []
     for (const seq of [...session.surface.nodes]) {
       const event = session.eventAt(seq)
       /* v8 ignore next -- surface seqs are validated contiguous log references. */
       if (event?.type === 'tool/result') candidates.push({ seq, event })
     }
+    // The freshest result is the one the model is most likely still working
+    // from; `keepLatest` spares it regardless of surface ordering.
+    let last: SnapshotCandidate | undefined
+    if (options?.keepLatest === true) {
+      for (const candidate of candidates) {
+        if (last === undefined || candidate.seq > last.seq) last = candidate
+      }
+    }
 
     const pruned: PrunedEntry[] = []
     let charsRemoved = 0
     for (const { seq, event } of candidates) {
+      if (last !== undefined && seq === last.seq) continue
       const result = event.data.message.content[0]
       const content = this.pruneContent(result.content)
       if (content === null) continue

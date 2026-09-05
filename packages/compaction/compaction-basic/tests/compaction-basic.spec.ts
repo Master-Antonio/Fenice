@@ -781,7 +781,7 @@ describe('pressure measurement and retention', () => {
 describe('optional model-free tool-result pruning', () => {
   const pruneConfig = { thresholdChars: 100, headChars: 20, tailChars: 10 }
 
-  it('does not prune a below-pressure session opportunistically', async () => {
+  it('prunes opportunistically on a below-pressure session, sparing the freshest result', async () => {
     const ctx = createContext(10_000)
     const prune = new ToolResultPruner(ctx, pruneConfig)
     const compact = new TestCompactionEngine(ctx, {
@@ -790,12 +790,41 @@ describe('optional model-free tool-result pruning', () => {
       retainTokens: 100,
     })
     const session = oversizedToolResult()
+    const callId = ToolCallId('oversized-2')
+    // A second step with another oversized result, so the surface holds two:
+    // the freshest result is the one the model may still be working from and
+    // must survive the per-step pass; the older one is landed now instead of
+    // riding along in every request until pressure.
+    session.append('step/start', { turn: 2, step: 1 })
+    session.append('assistant/message', {
+      stream: [],
+      turn: 2,
+      step: 1,
+      message: createMessage({
+        role: 'assistant',
+        content: [{ type: 'tool-call', id: callId, name: 'bash', arguments: '{}' }],
+        source: { kind: 'model', ...{ provider: MODEL, model: MODEL } },
+      }),
+    }, { surfaceOp: 'append' })
+    session.append('tool/call', { turn: 2, step: 1, callId, name: 'bash', arguments: '{}' })
+    session.append('tool/result', {
+      turn: 2,
+      step: 1,
+      message: createToolResultMessage({
+        callId,
+        content: [{ type: 'text', text: 'Y'.repeat(200) }],
+        isError: false,
+      }),
+      meta: { presentation: 'preserved' },
+    }, { surfaceOp: 'append' })
     const pruneSession = vi.spyOn(prune, 'pruneSession')
 
     expect(await compactIfNeeded(compact, session)).toBeNull()
-    expect(pruneSession).not.toHaveBeenCalled()
+    expect(pruneSession).toHaveBeenCalled()
     expect(compact.calls).toHaveLength(0)
-    expect(session.surface.replaceGeneration).toBe(0)
+    // Exactly one replacement landed: the older result was pruned, the
+    // freshest one was spared by keepLatest.
+    expect(session.surface.replaceGeneration).toBe(1)
   })
 
   it('skips LLM summarization when pruning alone clears pressure', async () => {

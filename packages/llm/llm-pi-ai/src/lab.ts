@@ -56,7 +56,7 @@ const DESCRIPTIONS: Record<keyof AgentLabFlags, string> = {
   circuitBreaker: 'Skip a failing provider route straight to its fallback after repeated quick failures.',
   cascadeMetrics: 'Record every fallback cascade hop to the external Agent-Lab telemetry file.',
   turnTelemetry: 'Record per-turn token usage, latency, and outcome to the external Agent-Lab telemetry file.',
-  promptCacheStablePrefix: 'Keep the request prefix byte-stable to maximize provider cache hits.',
+  promptCacheStablePrefix: 'Keep the request prefix byte-stable to maximize provider cache hits (default on).',
   compactionPointer: 'Truncated tool outputs link to their full copy in the spill store.',
   tierRouter: 'Route tasks to model tiers by difficulty heuristics and budget caps.',
   sessionTruncate: '(coming soon) True in-place truncation powering rewind/delete without forking.',
@@ -65,12 +65,12 @@ const DESCRIPTIONS: Record<keyof AgentLabFlags, string> = {
   selfHealingLoop: 'Bounded reproduce-fix-retest loop on failing work items.',
 }
 
-/** Runtime schema for the Agent-Lab section; every flag defaults to OFF except the meters. */
+/** Runtime schema for the Agent-Lab section; every flag defaults to OFF except the meters and the prefix guarantee. */
 export const AgentLabSchema: z<AgentLabFlags> = z.object({
   circuitBreaker: z.boolean().default(false),
   cascadeMetrics: z.boolean().default(true),
   turnTelemetry: z.boolean().default(true),
-  promptCacheStablePrefix: z.boolean().default(false),
+  promptCacheStablePrefix: z.boolean().default(true),
   compactionPointer: z.boolean().default(false),
   tierRouter: z.boolean().default(false),
   sessionTruncate: z.boolean().default(false),
@@ -85,8 +85,13 @@ export function resolveLabFlags(source?: Partial<AgentLabFlags>): AgentLabFlags 
   for (const key of Object.keys(DESCRIPTIONS) as (keyof AgentLabFlags)[]) {
     if (typeof merged[key] !== 'boolean') {
       // The two meters default ON: they ARE the measurement layer the whole
-      // lab reads; experiments themselves default OFF (pure baseline first).
-      merged[key] = key === 'cascadeMetrics' || key === 'turnTelemetry'
+      // lab reads. The stable prefix is a baseline guarantee, not an
+      // experiment: with provider prompt caches keyed on the request prefix,
+      // leaving it off silently taxes every deployment that never opens this
+      // section. Behavior-changing experiments themselves default OFF.
+      merged[key] = key === 'cascadeMetrics'
+        || key === 'turnTelemetry'
+        || key === 'promptCacheStablePrefix'
     }
   }
   return merged as AgentLabFlags
