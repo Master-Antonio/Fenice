@@ -10,7 +10,7 @@
  */
 
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -56,7 +56,15 @@ export interface CompactionSpillStoreOptions {
    * agent lab spill directory.
    */
   spillDir?: string | null
+  /**
+   * Maximum retained entries; storing beyond it evicts the oldest entry and
+   * removes its spill file (default 1000).
+   */
+  maxEntries?: number
 }
+
+/** Default bound on retained spill entries. */
+export const DEFAULT_SPILL_MAX_ENTRIES = 1000
 
 /**
  * In-memory and optional disk spill store for compacted tool outputs.
@@ -64,6 +72,7 @@ export interface CompactionSpillStoreOptions {
 export class CompactionSpillStore {
   private readonly map = new Map<string, string>()
   private readonly spillDir: string | null
+  private readonly maxEntries: number
   private dirCreated = false
 
   constructor(options?: CompactionSpillStoreOptions) {
@@ -74,6 +83,11 @@ export class CompactionSpillStore {
     } else {
       this.spillDir = defaultAgentLabSpillDir()
     }
+    const maxEntries = options?.maxEntries ?? DEFAULT_SPILL_MAX_ENTRIES
+    if (!Number.isInteger(maxEntries) || maxEntries <= 0) {
+      throw new Error(`CompactionSpillStore: maxEntries (${String(maxEntries)}) must be a positive integer`)
+    }
+    this.maxEntries = maxEntries
   }
 
   /**
@@ -100,8 +114,27 @@ export class CompactionSpillStore {
         this.dirCreated = false
       }
     }
+    this.evictBeyondBound()
 
     return id
+  }
+
+  /**
+   * Evict oldest entries beyond the bound, removing their spill files. Map
+   * insertion order is oldest-first, and re-storing refreshes recency.
+   */
+  private evictBeyondBound(): void {
+    for (const key of this.map.keys()) {
+      if (this.map.size <= this.maxEntries) break
+      this.map.delete(key)
+      if (this.spillDir !== null) {
+        try {
+          rmSync(join(this.spillDir, `${key}.txt`), { force: true })
+        } catch {
+          // A missing or locked spill file must not fail the store call.
+        }
+      }
+    }
   }
 
   /**

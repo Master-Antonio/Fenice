@@ -170,6 +170,12 @@ export interface PiAiProviderProfile {
   maxRequestImageBytes?: number
   /** Maximum characters for inline tool results in context before micro-compaction (default 32,768). */
   maxToolResultChars?: number
+  /**
+   * Collapse superseded duplicate tool results on the wire to a deterministic
+   * one-line marker, keeping only the newest identical call full (default
+   * false). The durable log is untouched; error results never collapse.
+   */
+  collapseSupersededResults?: boolean
   /** Secondary provider route to cascade to when primary provider fails with 429/504 or transport error. */
   fallbackProvider?: string
   /** Model id to use on fallback provider; defaults to current model id. */
@@ -198,6 +204,8 @@ export interface ResolvedPiAiProviderProfile
   fallbackModel?: string
   /** Positive integer inline tool-result bound after defaulting. */
   maxToolResultChars: number
+  /** Whether wire assembly collapses superseded duplicate results after defaulting. */
+  collapseSupersededResults: boolean
   /** Validated credential reference, when one is configured. */
   apiKeyEnv?: CredentialRef
   /** Positive finite provider-idle interval after defaulting. */
@@ -345,6 +353,7 @@ const profile = z.object({
   streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
   maxRequestImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REQUEST_IMAGE_BYTES),
   maxToolResultChars: z.number().step(1).min(1).default(32_768),
+  collapseSupersededResults: z.boolean().default(false),
   fallbackProvider: z.string(),
   fallbackModel: z.string(),
   requestImagePixelBudget: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET),
@@ -441,6 +450,7 @@ export function resolveProfiles(
     if (!Number.isInteger(maxToolResultChars) || maxToolResultChars <= 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" maxToolResultChars must be a positive integer`)
     }
+    const collapseSupersededResults = source.collapseSupersededResults ?? false
     const streamIdleTimeoutMs = source.streamIdleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT_MS
     if (!Number.isFinite(streamIdleTimeoutMs)
       || streamIdleTimeoutMs <= 0
@@ -494,6 +504,7 @@ export function resolveProfiles(
       streamIdleTimeoutMs,
       maxRequestImageBytes,
       maxToolResultChars,
+      collapseSupersededResults,
       requestImagePixelBudget,
       requestImageMaxBytes,
       retryPolicy: resolveRetryPolicy(retryPolicy, `llm-pi-ai: provider "${provider}" retryPolicy`),

@@ -6,7 +6,16 @@
  * @module dsh-llm-deepseek/serialize
  */
 
-import { contentHasImage, LlmError, offloadedImageText, offloadRequestImagesWithPolicy, requestImageHandleText } from '@deepseek-ai/dsh-llm'
+import {
+  collectSupersedeCandidates,
+  contentHasImage,
+  LlmError,
+  offloadedImageText,
+  offloadRequestImagesWithPolicy,
+  planSupersededCollapse,
+  requestImageHandleText,
+  supersededMarker,
+} from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, GenerateOptions, ImageAttachmentAccessResolver, Message } from '@deepseek-ai/dsh-llm'
 import { canonicalizeJsonValue } from '@deepseek-ai/dsh-util-values'
 import type { ImageAttachmentRef, RequestImageAttachment } from '@deepseek-ai/dsh-attachment'
@@ -23,6 +32,18 @@ import type {
 export interface RequestDefaults {
   thinking?: 'enabled' | 'disabled' | undefined
   reasoningEffort?: 'off' | 'low' | 'high' | 'max' | undefined
+  /** Collapse superseded duplicate tool results to a deterministic marker (default false). */
+  collapseSupersededResults?: boolean | undefined
+  /** Newest tool-call-free reasoning turns keeping reasoning; omission keeps all (default off). */
+  staleReasoningKeepLast?: number | undefined
+}
+
+/** Wire conversion options shared by the text-only and image-capable paths. */
+interface SerializeMessagesOptions {
+  /** Collapse superseded duplicate tool results to a deterministic marker (default false). */
+  collapseSupersededResults?: boolean
+  /** Newest tool-call-free reasoning turns keeping reasoning; omission keeps all (default off). */
+  staleReasoningKeepLast?: number
 }
 
 interface ResolvedThinking {
@@ -201,12 +222,17 @@ function userContent(parts: readonly WireUserContentPart[]): string | WireUserCo
 }
 
 /** Serialize one assistant message (text + reasoning + tool calls). */
-function serializeAssistant(message: Message): WireMessage {
+function serializeAssistant(
+  message: Message,
+  includeReasoning = true,
+): WireMessage {
   const text = flattenText(message.content)
-  const reasoning = message.content
-    .filter(block => block.type === 'reasoning')
-    .map(block => block.text)
-    .join('')
+  const reasoning = includeReasoning
+    ? message.content
+      .filter(block => block.type === 'reasoning')
+      .map(block => block.text)
+      .join('')
+    : ''
   const toolCalls = message.content
     .filter(block => block.type === 'tool-call')
     .map(block => ({
@@ -237,23 +263,63 @@ function serializeAssistant(message: Message): WireMessage {
 }
 
 /**
+ * Message indexes whose reasoning to strip: tool-call-free assistant turns
+ * with reasoning content, beyond the newest `keepLast`. Recency rank only
+ * grows as history appends, so a stripped turn stays stripped and the wire
+ * prefix restabilizes. Tool-call turns are never listed: the API requires
+ * their passback and gateways recover thinking signatures from it.
+ * @param messages - harness conversation in wire order.
+ * @param keepLast - newest eligible turns keeping reasoning; must be a non-negative integer.
+ * @returns indexes to serialize without reasoning content.
+ */
+function droppableReasoningIndexes(messages: readonly Message[], keepLast: number): ReadonlySet<number> {
+  const eligible: number[] = []
+  for (const [index, message] of messages.entries()) {
+    if (message.role !== 'assistant') continue
+    if (!message.content.some(block => block.type === 'reasoning')) continue
+    if (message.content.some(block => block.type === 'tool-call')) continue
+    eligible.push(index)
+  }
+  return new Set(eligible.slice(0, Math.max(0, eligible.length - keepLast)))
+}
+
+/**
  * Serialize the conversation. `tool-result` blocks become standalone
  * `{role: 'tool'}` messages; the harness puts each tool result in its own
  * user-role message, so a mixed user message contributes its text first and
  * its tool results as separate wire messages after.
  * @param messages - the harness conversation, in order.
+ * @param options - wire toggles; collapse and stale-reasoning window stay off unless set.
  * @returns the wire messages; order preserved, each tool result expanded into its own entry.
  */
-export function serializeMessages(messages: Message[]): WireMessage[] {
+export function serializeMessages(
+  messages: Message[],
+  options?: SerializeMessagesOptions,
+): WireMessage[] {
   const wire: WireMessage[] = []
-  for (const message of messages) {
+  // Superseded-collapse plan over harness history (stable call ids): results
+  // collapsed once stay collapsed as history grows, keeping the wire prefix
+  // cache-stable. Disabled by default; the durable log is never touched.
+  const superseded = options?.collapseSupersededResults === true
+    ? planSupersededCollapse(collectSupersedeCandidates(messages))
+    : undefined
+  // Stale-reasoning window over tool-call-free turns, newest first: dropping
+  // is monotonic (a turn that falls out never re-enters), so the prefix
+  // restabilizes after the transition. Tool-call turns always keep reasoning:
+  // the API rejects the request without the passback, and gateways recover
+  // upstream thinking signatures from it.
+  const keepLast = options?.staleReasoningKeepLast
+  const droppable = keepLast === undefined
+    ? undefined
+    : droppableReasoningIndexes(messages, keepLast)
+  for (const [messageIndex, message] of messages.entries()) {
     assertTextOnly(message.content)
     if (message.role === 'system') {
       wire.push({ role: 'system', content: flattenText(message.content) })
       continue
     }
     if (message.role === 'assistant') {
-      wire.push(serializeAssistant(message))
+      wire.push(serializeAssistant(message, droppable?.has(messageIndex) !== true))
       continue
     }
     // user role: tool results ride in user messages in the harness
@@ -264,6 +330,15 @@ export function serializeMessages(messages: Message[]): WireMessage[] {
       wire.push({ role: 'user', content: text })
     }
     for (const result of toolResults) {
+      const supersededName = superseded?.get(result.toolCallId)
+      if (supersededName !== undefined) {
+        wire.push({
+          role: 'tool',
+          tool_call_id: result.toolCallId,
+          content: supersededMarker(supersededName),
+        })
+        continue
+      }
       wire.push({
         role: 'tool',
         tool_call_id: result.toolCallId,
@@ -281,14 +356,21 @@ export function serializeMessages(messages: Message[]): WireMessage[] {
  * user message containing their images.
  * @param messages - transient request history after request-size offloading.
  * @param images - prepared request versions, one provider representation, and its budget.
+ * @param options - wire toggles; collapse and stale-reasoning window stay off unless set.
  * @returns ordered DeepSeek wire messages.
  */
 export async function serializeMessagesWithImages(
   messages: readonly Message[],
   images: ImageSerializationOptions,
+  options?: SerializeMessagesOptions,
 ): Promise<WireMessage[]> {
   assertSupportedImageRoles(messages)
   const wire: WireMessage[] = []
+  const superseded = options?.collapseSupersededResults === true
+    ? planSupersededCollapse(collectSupersedeCandidates(messages))
+    : undefined
+  const keepLast = options?.staleReasoningKeepLast
+  const droppable = keepLast === undefined ? undefined : droppableReasoningIndexes(messages, keepLast)
   let pendingToolImages: WireImageContentPart[] = []
   const flushToolImages = (): void => {
     if (pendingToolImages.length === 0) return
@@ -308,7 +390,7 @@ export async function serializeMessagesWithImages(
     }
     if (message.role === 'assistant') {
       flushToolImages()
-      wire.push(serializeAssistant(message))
+      wire.push(serializeAssistant(message, droppable?.has(messageIndex) !== true))
       continue
     }
 
@@ -325,6 +407,16 @@ export async function serializeMessagesWithImages(
       })
     }
     for (const result of toolResults) {
+      const supersededName = superseded?.get(result.toolCallId)
+      if (supersededName !== undefined) {
+        flushToolImages()
+        wire.push({
+          role: 'tool',
+          tool_call_id: result.toolCallId,
+          content: supersededMarker(supersededName),
+        })
+        continue
+      }
       const parts = await contentParts(result.content, images, messageIndex + 1, nextImage)
       const imageParts = parts.filter((part): part is WireImageContentPart => part.type !== 'text')
       const text = parts.filter(part => part.type === 'text').map(part => part.text).join('')
@@ -397,7 +489,14 @@ export function serializeRequest(
   if (options.system !== undefined) {
     messages.push({ role: 'system', content: options.system })
   }
-  messages.push(...serializeMessages(options.messages))
+  messages.push(...serializeMessages(options.messages, {
+    ...defaults.collapseSupersededResults === undefined
+      ? {}
+      : { collapseSupersededResults: defaults.collapseSupersededResults },
+    ...defaults.staleReasoningKeepLast === undefined
+      ? {}
+      : { staleReasoningKeepLast: defaults.staleReasoningKeepLast },
+  }))
 
   return requestWithMessages(options, messages, defaults)
 }
@@ -436,6 +535,13 @@ export async function serializeRequestWithImages(
   if (options.system !== undefined) {
     messages.push({ role: 'system', content: options.system })
   }
-  messages.push(...await serializeMessagesWithImages(requestMessages, images))
+  messages.push(...await serializeMessagesWithImages(requestMessages, images, {
+    ...defaults.collapseSupersededResults === undefined
+      ? {}
+      : { collapseSupersededResults: defaults.collapseSupersededResults },
+    ...defaults.staleReasoningKeepLast === undefined
+      ? {}
+      : { staleReasoningKeepLast: defaults.staleReasoningKeepLast },
+  }))
   return requestWithMessages(options, messages, defaults)
 }

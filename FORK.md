@@ -9,7 +9,7 @@
 | Area | Upstream | This fork |
 |---|---|---|
 | Documentation | Bilingual EN/ZH with pairing sidecars | English-only; no `*.zh.md` or `*.i18n.yaml` counterparts |
-| Request economy | Vendor-dependent prefix stability, 200k web-fetch cap, compaction-gated pruning | Byte-stable prefix by default, 32k web-fetch cap, per-check tool-result pruning that spares the latest result |
+| Request economy | Vendor-dependent prefix stability, 200k web-fetch cap, compaction-gated pruning | Byte-stable prefix by default, 32k web-fetch cap, per-check tool-result pruning that spares the latest result, deferred distant tool families, mounted session-query recall |
 | Provider resilience | No fallback | Automatic fallback cascade with eligibility, single-flight, anti-cycle, optional circuit breaker |
 | Output safety | None | Streaming marker-based proxy-envelope sanitizer, JSON-safe on tool arguments |
 | Context FinOps | None | Micro-compaction of tool outputs past a configurable threshold |
@@ -37,7 +37,11 @@ Tool schemas serialize in canonical key order on the wire (`canonicalizeJsonValu
 
 The web-fetch output cap is 32,768 characters aligned with the pi-ai wire budget, keeping head and tail with an elision marker for plain text at both source and output level; HTML keeps a head-only source cut because a mid-markup seam can break tag matching.
 
-The model-free tool-result pruner runs on every automatic `compaction-basic` check instead of only when pressure qualifies, so oversized results are cut while fresh; the most recent tool result is spared while stepping because the model may be working from it in the current turn, and context-overflow recovery still prunes everything.
+The model-free tool-result pruner runs on every automatic `compaction-basic` check instead of only when pressure qualifies, so oversized results are cut while fresh; the most recent tool result is spared while stepping because the model may be working from it in the current turn, and context-overflow recovery still prunes everything. Pro-tier sessions compact through the economy flash model with a capped output via `modelPolicies`.
+
+Skill catalog descriptions cap at 200 characters by default. The `str_replace_editor` schema leaves the shared base composition (read, write, and edit cover the loop) while the `minimal` preset, the standalone SDK bundle, and pinning scenario compositions keep it. The workflow, goal, and ralph model-facing tools leave the base composition while their engines stay; the `standard` and `cordis` presets remount them per session and recorded scenarios pin them through their own compositions. Guide sections no longer repeat their tool descriptions: descriptions stay complete for PTC-mode agents while sections keep only orchestration.
+
+The five session-query recall tools mount in the base composition with a lazily opened full-text index, so agents query past sessions instead of reloading context and recover log-intact originals behind pruned wire markers. Two opt-in wire collapses ship default-off with tested enablement paths: superseded-duplicate tombstoning on both LLM adapters and stale-reasoning windows on the DeepSeek adapter. Token-meter reports per-session cache efficiency (hit rate) through session projections. Details, measurements, rejections, and deferred items live in the [request-economy batch note](.agents/notes/implemented/feature/2026-09-06-request-economy-batch.md).
 
 ## 4. LLM resilience: fallback cascade plus circuit breaker
 

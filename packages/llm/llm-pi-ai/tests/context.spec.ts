@@ -501,6 +501,61 @@ describe('tool-result micro-compaction wiring', () => {
   })
 })
 
+describe('superseded duplicate collapse', () => {
+  const dupHistory = (): GenerateOptions['messages'] => [
+    history('assistant', [{ type: 'tool-call', id: ToolCallId('call-old'), name: 'lookup', arguments: '{"q":"a"}' }]),
+    user([{ type: 'tool-result', toolCallId: ToolCallId('call-old'), content: [{ type: 'text', text: 'old output' }] }]),
+    history('assistant', [{ type: 'tool-call', id: ToolCallId('call-new'), name: 'lookup', arguments: '{"q":"a"}' }]),
+    user([{ type: 'tool-result', toolCallId: ToolCallId('call-new'), content: [{ type: 'text', text: 'new output' }] }]),
+  ]
+  const resultTexts = (context: unknown): string[] => {
+    const { messages } = context as { messages: { role: string; content: { text: string }[] }[] }
+    return messages.filter(m => m.role === 'toolResult').map(m => m.content[0]?.text ?? '')
+  }
+  const collapse = { collapseSupersededResults: true } as const
+
+  it('keeps duplicates full unless collapse is enabled', () => {
+    expect(resultTexts(toPiContext(request(dupHistory())))).toEqual(['old output', 'new output'])
+  })
+
+  it('collapses the older duplicate to a deterministic marker when enabled', () => {
+    expect(resultTexts(toPiContext(request(dupHistory()), undefined, undefined, undefined, collapse)))
+      .toEqual(['[superseded: a later identical lookup call carries the current output]', 'new output'])
+  })
+
+  it('keeps collapsed bytes stable as newer history grows', () => {
+    const grown: GenerateOptions['messages'] = [
+      ...dupHistory(),
+      history('assistant', [{ type: 'tool-call', id: ToolCallId('call-other'), name: 'other', arguments: '{}' }]),
+      user([{ type: 'tool-result', toolCallId: ToolCallId('call-other'), content: [{ type: 'text', text: 'other' }] }]),
+    ]
+    const before = resultTexts(toPiContext(request(dupHistory()), undefined, undefined, undefined, collapse))
+    const after = resultTexts(toPiContext(request(grown), undefined, undefined, undefined, collapse))
+    expect(after.slice(0, 2)).toEqual(before)
+  })
+
+  it('never collapses error results', () => {
+    const historyWithError: GenerateOptions['messages'] = [
+      history('assistant', [{ type: 'tool-call', id: ToolCallId('call-ok'), name: 'lookup', arguments: '{}' }]),
+      user([{ type: 'tool-result', toolCallId: ToolCallId('call-ok'), content: [{ type: 'text', text: 'ok' }] }]),
+      history('assistant', [{ type: 'tool-call', id: ToolCallId('call-bad'), name: 'lookup', arguments: '{}' }]),
+      user([{ type: 'tool-result', toolCallId: ToolCallId('call-bad'), content: [{ type: 'text', text: 'boom' }], isError: true }]),
+    ]
+    expect(resultTexts(toPiContext(request(historyWithError), undefined, undefined, undefined, collapse)))
+      .toEqual(['ok', 'boom'])
+  })
+
+  it('collapses older duplicates on the image path without resolving their content', async () => {
+    const context = await toPiContext(
+      request(dupHistory()),
+      imageContext(attachments, { collapseSupersededResults: true }),
+    )
+    expect(resultTexts(context)).toEqual(
+      ['[superseded: a later identical lookup call carries the current output]', 'new output'],
+    )
+  })
+})
+
 describe('prompt-cache prefix stability helpers', () => {
   type FpContext = Parameters<typeof prefixFingerprint>[0]
   const fpContext = (

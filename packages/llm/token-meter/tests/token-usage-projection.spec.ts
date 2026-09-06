@@ -6,7 +6,11 @@ import SessionStore from '@deepseek-ai/dsh-session'
 import type { Session, SessionSeq } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import TokenMeter from '@deepseek-ai/dsh-token-meter'
-import type { ContextPressureProjection, TokenUsageProjection } from '@deepseek-ai/dsh-token-meter/client'
+import type {
+  CacheEfficiencyProjection,
+  ContextPressureProjection,
+  TokenUsageProjection,
+} from '@deepseek-ai/dsh-token-meter/client'
 import { RetryId } from '@deepseek-ai/dsh-llm-retry'
 import { CompactionId } from '@deepseek-ai/dsh-compaction'
 
@@ -69,6 +73,12 @@ function finalUsage(
 const projected = (ctx: Context, session: Session): TokenUsageProjection => {
   const value = ctx.sessionProjections.snapshot(session).values.tokenUsage
   if (value === undefined) throw new Error('tokenUsage projection is not registered')
+  return value
+}
+
+const efficiency = (ctx: Context, session: Session): CacheEfficiencyProjection => {
+  const value = ctx.sessionProjections.snapshot(session).values.cacheEfficiency
+  if (value === undefined) throw new Error('cacheEfficiency projection is not registered')
   return value
 }
 
@@ -523,5 +533,70 @@ describe('contextPressure session projection', () => {
       sourceEventSeqs: [question],
     })
     expect(pressure(ctx, session).projectedTokens).toBe(0)
+  })
+})
+
+describe('cacheEfficiency session projection', () => {
+  it('serves zero buckets with no hit rate without usage samples', async () => {
+    const { ctx, session } = await harness()
+    expect(efficiency(ctx, session)).toEqual({
+      uncachedInputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    })
+  })
+
+  it('derives the prompt-cache hit rate from cached and uncached buckets', async () => {
+    const { ctx, session } = await harness()
+    startStep(session, 1, 1)
+    finalUsage(session, {
+      inputTokens: 800,
+      outputTokens: 20,
+      cacheReadTokens: 200,
+      cacheWriteTokens: 0,
+      totalTokens: 1020,
+    }, 1, 1)
+    expect(efficiency(ctx, session)).toEqual({
+      uncachedInputTokens: 800,
+      cacheReadTokens: 200,
+      cacheWriteTokens: 0,
+      hitRate: 0.2,
+    })
+  })
+
+  it('omits the hit rate until prompt tokens exist', async () => {
+    const { ctx, session } = await harness()
+    startStep(session, 1, 1)
+    finalUsage(session, { inputTokens: 0, outputTokens: 5 }, 1, 1)
+    expect(efficiency(ctx, session)).toEqual({
+      uncachedInputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    })
+  })
+
+  it('replaces a retried attempt instead of double counting it', async () => {
+    const { ctx, session } = await harness()
+    startStep(session, 1, 1)
+    usageChunk(session, {
+      inputTokens: 800,
+      outputTokens: 20,
+      cacheReadTokens: 200,
+      cacheWriteTokens: 0,
+      totalTokens: 1020,
+    }, 1, 1)
+    finalUsage(session, {
+      inputTokens: 800,
+      outputTokens: 20,
+      cacheReadTokens: 200,
+      cacheWriteTokens: 0,
+      totalTokens: 1020,
+    }, 1, 1)
+    expect(efficiency(ctx, session)).toEqual({
+      uncachedInputTokens: 800,
+      cacheReadTokens: 200,
+      cacheWriteTokens: 0,
+      hitRate: 0.2,
+    })
   })
 })

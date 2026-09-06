@@ -971,6 +971,18 @@ export interface Config {
   thinking?: 'enabled' | 'disabled'
   /** Default thinking effort (default `high`); `off` disables thinking per request. */
   reasoningEffort?: 'off' | 'low' | 'high' | 'max'
+  /**
+   * Collapse superseded duplicate tool results on the wire to a deterministic
+   * one-line marker, keeping only the newest identical call full (default
+   * false). The durable log is untouched; error results never collapse.
+   */
+  collapseSupersededResults?: boolean
+  /**
+   * Newest tool-call-free reasoning turns keeping reasoning on the wire;
+   * older reasoning is stripped while text stays (omission keeps all).
+   * Tool-call turns always keep reasoning: the API requires the passback.
+   */
+  staleReasoningKeepLast?: number
   /** Default per-request output cap (default 256,000); a model's own cap and explicit request values win. */
   maxTokens?: number
   /** Positive context capacity used when the selected model has no exact value (default 1,000,000). */
@@ -1130,6 +1142,12 @@ export interface PiAiProviderProfile {
   maxRequestImageBytes?: number
   /** Maximum characters for inline tool results in context before micro-compaction (default 32,768). */
   maxToolResultChars?: number
+  /**
+   * Collapse superseded duplicate tool results on the wire to a deterministic
+   * one-line marker, keeping only the newest identical call full (default
+   * false). The durable log is untouched; error results never collapse.
+   */
+  collapseSupersededResults?: boolean
   /** Secondary provider route to cascade to when primary provider fails with 429/504 or transport error. */
   fallbackProvider?: string
   /** Model id to use on fallback provider; defaults to current model id. */
@@ -1298,7 +1316,7 @@ export type PiAiThinkingFormat = NonNullable<OpenAICompletionsCompat['thinkingFo
 
 Depends on: `Api` (`@earendil-works/pi-ai`) · `CacheRetention` (`@earendil-works/pi-ai`) · `Model` (`@earendil-works/pi-ai`) · `ModelThinkingLevel` (`@earendil-works/pi-ai`) · `OpenAICompletionsCompat` (`@earendil-works/pi-ai`) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` (`@earendil-works/pi-ai`) · `Transport` (`@earendil-works/pi-ai`)
 
-Source: [`packages/llm/llm-pi-ai/src/config.ts:229`](../packages/llm/llm-pi-ai/src/config.ts)
+Source: [`packages/llm/llm-pi-ai/src/config.ts:237`](../packages/llm/llm-pi-ai/src/config.ts)
 
 <a id="deepseek-aidsh-llm-replay"></a>
 

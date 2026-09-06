@@ -11,6 +11,15 @@ import * as yaml from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import { evaluate } from '@deepseek-ai/cordis-plugin-loader'
 
+/** Exact-target compaction override pinned by the base composition test. */
+interface CompactPolicy {
+  provider: string
+  model: string
+  summarizationProvider: string
+  summarizationModel: string
+  maxTokens: number
+}
+
 describe('dsh-base bundle', () => {
   it('declares a parseable patch list through the dsh.bundle.patch manifest field', () => {
     const root = fileURLToPath(new URL('..', import.meta.url))
@@ -44,9 +53,85 @@ describe('dsh-base bundle', () => {
     expect(rows.find(row => row.id === 'web')?.config).toMatchObject({ fetchProvider: 'http' })
     expect(rows.find(row => row.id === 'web-fetch-http')).toBeDefined()
     expect(rows.find(row => row.id === 'tool-web')?.config).toMatchObject({ fetch: true })
+    // read/write/edit cover the editor: the base composition ships no
+    // str_replace_editor schema, so no request pays its ~763 tokens.
+    expect(rows.some(row => row.id === 'tool-str-replace-editor')).toBe(false)
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-claude-code')
     expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-web-fetch-http')
+  })
+
+  it('defers the workflow, goal, and ralph tool families out of the base composition', () => {
+    const root = fileURLToPath(new URL('..', import.meta.url))
+    const parsed = yaml.load(
+      readFileSync(resolve(root, 'cordis.patch.yml'), 'utf8'),
+      { schema: entryListSchema },
+    )
+    if (!Array.isArray(parsed)) throw new TypeError('base patch must parse to a patch list')
+    const rows = parsed.flatMap((patch): Record<string, unknown>[] =>
+      typeof patch === 'object' && patch !== null
+        ? (patch as { insert?: Record<string, unknown>[] }).insert ?? []
+        : [],
+    )
+    // Distant families stay out of every base request: presets remount them
+    // per session (standard, cordis) and recorded scenarios pin them through
+    // their own composition patches. The engines stay: worker-thread and the
+    // spawn backends remain mounted for whoever resolves them.
+    for (const id of ['tool-workflow', 'tool-goal', 'tool-ralph']) {
+      expect(rows.some(row => row.id === id), id).toBe(false)
+    }
+    expect(rows.some(row => row.id === 'workflow-worker-thread')).toBe(true)
+    expect(rows.some(row => row.id === 'command-goal')).toBe(true)
+  })
+
+  it('mounts the session-query tools with a lazily opened full-text index', () => {
+    const root = fileURLToPath(new URL('..', import.meta.url))
+    const parsed = yaml.load(
+      readFileSync(resolve(root, 'cordis.patch.yml'), 'utf8'),
+      { schema: entryListSchema },
+    )
+    if (!Array.isArray(parsed)) throw new TypeError('base patch must parse to a patch list')
+    const rows = parsed.flatMap((patch): Record<string, unknown>[] =>
+      typeof patch === 'object' && patch !== null
+        ? (patch as { insert?: Record<string, unknown>[] }).insert ?? []
+        : [],
+    )
+    // Recall without reload: the model queries past sessions instead of
+    // re-reading context, and recovers log-intact originals behind pruned
+    // wire markers through session_event_read.
+    expect(rows.some(row => row.id === 'tool-session-query')).toBe(true)
+    // Lazily opened: no SQLite cost until the first search call.
+    const sqlite = rows.find(candidate => candidate.id === 'session-query-sqlite')?.config as
+      | { openAt?: string }
+      | undefined
+    expect(sqlite?.openAt).toBe('first-search')
+  })
+
+  it('routes pro-tier compaction summaries through the economy flash model', () => {
+    const root = fileURLToPath(new URL('..', import.meta.url))
+    const parsed = yaml.load(
+      readFileSync(resolve(root, 'cordis.patch.yml'), 'utf8'),
+      { schema: entryListSchema },
+    )
+    if (!Array.isArray(parsed)) throw new TypeError('base patch must parse to a patch list')
+    const rows = parsed.flatMap((patch): Record<string, unknown>[] =>
+      typeof patch === 'object' && patch !== null
+        ? (patch as { insert?: Record<string, unknown>[] }).insert ?? []
+        : [],
+    )
+    // Sessions on the pro model must not pay pro prices for the compaction
+    // summary: the exact-target override pins the flash summarizer with a
+    // capped output. Other routes keep the follow-the-session default.
+    const config = rows.find(candidate => candidate.id === 'compaction-basic')?.config as
+      | { modelPolicies?: CompactPolicy[] }
+      | undefined
+    expect(config?.modelPolicies).toContainEqual({
+      provider: 'deepseek-official',
+      model: 'deepseek-v4-pro',
+      summarizationProvider: 'deepseek-official',
+      summarizationModel: 'deepseek-v4-flash',
+      maxTokens: 4096,
+    })
   })
 
   it('gates each shell stack by platform with a symmetric disabled expression', () => {

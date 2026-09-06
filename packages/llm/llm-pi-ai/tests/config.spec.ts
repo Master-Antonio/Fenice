@@ -131,6 +131,12 @@ describe('tool-result compaction budget boundary', () => {
     expect(() => resolveProfiles({ acme: route({ maxToolResultChars: 1.5 }) }))
       .toThrow(/maxToolResultChars must be a positive integer/)
   })
+
+  it('defaults superseded-collapse off and carries an explicit opt-in to resolution', () => {
+    expect(resolveProfiles({ acme: route() }).get('acme')?.collapseSupersededResults).toBe(false)
+    const enabled = resolveProfiles({ acme: route({ collapseSupersededResults: true }) })
+    expect(enabled.get('acme')?.collapseSupersededResults).toBe(true)
+  })
 })
 
 describe('request image policy bounds', () => {

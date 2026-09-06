@@ -18,6 +18,27 @@ export interface TokenUsageProjection {
 }
 
 /**
+ * Prompt-cache efficiency for a complete session log: the cached share of
+ * every prompt token the providers billed. Folds the same provider-reported
+ * usage samples as {@link TokenUsageProjection}, so the hit rate is
+ * measurable on every route without a parallel accounting path.
+ */
+export interface CacheEfficiencyProjection {
+  /** Sum of uncached prompt input across the durable log. */
+  uncachedInputTokens: number
+  /** Sum of cache-read prompt tokens across the durable log. */
+  cacheReadTokens: number
+  /** Sum of cache-write prompt tokens across the durable log. */
+  cacheWriteTokens: number
+  /**
+   * Share of prompt tokens served from cache (0 to 1); absent until any
+   * prompt token is observed, so an empty session reports no rate rather
+   * than a misleading zero.
+   */
+  hitRate?: number
+}
+
+/**
  * Approximate context occupancy for a status display.
  *
  * The fields, when present, are deliberately NOT one atomic request
@@ -69,6 +90,8 @@ declare module '@deepseek-ai/dsh-session-projection/types' {
   interface SessionProjectionMap {
     /** Provider-reported usage accumulated across the complete durable log. */
     tokenUsage: TokenUsageProjection
+    /** Cached share of billed prompt tokens across the complete durable log. */
+    cacheEfficiency: CacheEfficiencyProjection
     /** Newest request pressure paired with the newest known route capacity. */
     contextPressure: ContextPressureProjection
     /** Heuristic system/tools/message composition of the next request. */

@@ -5,8 +5,23 @@
  */
 
 import { brandString } from '@deepseek-ai/dsh-brand'
-import { contentHasImage, LlmError, offloadedImageText, offloadRequestImagesWithPolicy, requestImageHandleText } from '@deepseek-ai/dsh-llm'
-import type { ContentBlock, GenerateOptions, ImageAttachmentAccessResolver, Message, ToolCallId } from '@deepseek-ai/dsh-llm'
+import {
+  contentHasImage,
+  LlmError,
+  offloadedImageText,
+  offloadRequestImagesWithPolicy,
+  planSupersededCollapse,
+  collectSupersedeCandidates,
+  requestImageHandleText,
+  supersededMarker,
+} from '@deepseek-ai/dsh-llm'
+import type {
+  ContentBlock,
+  GenerateOptions,
+  ImageAttachmentAccessResolver,
+  Message,
+  ToolCallId,
+} from '@deepseek-ai/dsh-llm'
 import type {
   AttachmentId,
   AttachmentStore,
@@ -329,6 +344,12 @@ function textOnlyContext(
     ...contextOptions?.spillStore !== undefined ? { spillStore: contextOptions.spillStore } : {},
   }
   const promptCacheStablePrefix = contextOptions?.promptCacheStablePrefix ?? false
+  // Superseded-collapse plan over harness history (stable call ids): results
+  // collapsed once stay collapsed as history grows, keeping the wire prefix
+  // cache-stable. Disabled by default; the durable log is never touched.
+  const superseded = contextOptions?.collapseSupersededResults === true
+    ? planSupersededCollapse(collectSupersedeCandidates(options.messages))
+    : undefined
 
   for (const message of options.messages) {
     if (contentHasImage(message.content)) {
@@ -346,13 +367,17 @@ function textOnlyContext(
     const results = message.content.filter(block => block.type === 'tool-result')
     if (text.length > 0 || results.length === 0) messages.push({ role: 'user', content: text, timestamp: 0 })
     for (const result of results) {
+      const toolName = toolNames.get(result.toolCallId) ?? 'unknown'
+      const supersededName = superseded?.get(result.toolCallId)
       messages.push({
         role: 'toolResult',
         toolCallId: result.toolCallId,
-        toolName: toolNames.get(result.toolCallId) ?? 'unknown',
+        toolName,
         content: [{
           type: 'text',
-          text: toolResultText(result.content, maxToolResultChars, compactionOpts) || '(no output)',
+          text: supersededName === undefined
+            ? toolResultText(result.content, maxToolResultChars, compactionOpts) || '(no output)'
+            : supersededMarker(supersededName),
         }],
         isError: result.isError ?? false,
         timestamp: 0,
@@ -369,6 +394,8 @@ export interface PiContextOptions {
   compactionPointer?: boolean
   spillStore?: CompactionSpillStore
   promptCacheStablePrefix?: boolean
+  /** Collapse superseded duplicate tool results to a deterministic marker (default false). */
+  collapseSupersededResults?: boolean
 }
 
 /** Inputs that bind deterministic request images to one current tool execution world. */
@@ -389,6 +416,8 @@ export interface PiImageRequestContext {
   spillStore?: CompactionSpillStore
   /** Agent-Lab promptCacheStablePrefix flag: sort tools and canonicalize schemas. */
   promptCacheStablePrefix?: boolean
+  /** Collapse superseded duplicate tool results to a deterministic marker (default false). */
+  collapseSupersededResults?: boolean
 }
 
 /**
@@ -477,6 +506,9 @@ async function toPiContextWithImages(
   })
   const toolNames = new Map<ToolCallId, string>()
   const messages: PiMessage[] = []
+  const superseded = images.collapseSupersededResults === true
+    ? planSupersededCollapse(collectSupersedeCandidates(options.messages))
+    : undefined
 
   for (const message of exactMessages) {
     if (message.role === 'system') {
@@ -500,11 +532,23 @@ async function toPiContextWithImages(
       messages.push({ role: 'user', content, timestamp: 0 })
     }
     for (const result of results) {
+      const toolName = toolNames.get(result.toolCallId) ?? 'unknown'
+      if (superseded?.has(result.toolCallId) === true) {
+        messages.push({
+          role: 'toolResult',
+          toolCallId: result.toolCallId,
+          toolName,
+          content: [{ type: 'text', text: supersededMarker(toolName) }],
+          isError: result.isError ?? false,
+          timestamp: 0,
+        })
+        continue
+      }
       const resultContent = await userContent(result.content, requestImages, resolveImageAccess)
       messages.push({
         role: 'toolResult',
         toolCallId: result.toolCallId,
-        toolName: toolNames.get(result.toolCallId) ?? 'unknown',
+        toolName,
         content: typeof resultContent === 'string'
           ? [{
             type: 'text',

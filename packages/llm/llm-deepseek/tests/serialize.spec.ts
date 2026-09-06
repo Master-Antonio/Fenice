@@ -10,6 +10,7 @@ import {
   serializeRequestWithImages,
 } from '../src/serialize.ts'
 import type { ImageSerializationOptions } from '../src/serialize.ts'
+import type { WireMessage } from '../src/types.ts'
 
 type FileResolver = Extract<ImageSerializationOptions['representation'], { kind: 'file' }>['resolveFileId']
 
@@ -174,6 +175,99 @@ describe('serializeMessages', () => {
       }),
     ])
     expect(wire).toEqual([{ role: 'tool', tool_call_id: 'call-1', content: '(no output)' }])
+  })
+
+  describe('superseded duplicate collapse', () => {
+    const dupHistory = (): Message[] => [
+      createMessage({
+        role: 'assistant',
+        content: [{ type: 'tool-call', id: ToolCallId('call-old'), name: 'read', arguments: '{"path":"a"}' }],
+        source: { kind: 'plugin', plugin: 'test' },
+      }),
+      createUserMessage({
+        content: [{ type: 'tool-result', toolCallId: ToolCallId('call-old'), content: [{ type: 'text', text: 'old output' }] }],
+        source: { kind: 'plugin', plugin: 'test' },
+      }),
+      createMessage({
+        role: 'assistant',
+        content: [{ type: 'tool-call', id: ToolCallId('call-new'), name: 'read', arguments: '{"path":"a"}' }],
+        source: { kind: 'plugin', plugin: 'test' },
+      }),
+      createUserMessage({
+        content: [{ type: 'tool-result', toolCallId: ToolCallId('call-new'), content: [{ type: 'text', text: 'new output' }] }],
+        source: { kind: 'plugin', plugin: 'test' },
+      }),
+    ]
+
+    it('keeps duplicates full unless collapse is enabled', () => {
+      expect(serializeMessages(dupHistory())).toEqual([
+        { role: 'assistant', content: '', tool_calls: [{ id: 'call-old', type: 'function', function: { name: 'read', arguments: '{"path":"a"}' } }] },
+        { role: 'tool', tool_call_id: 'call-old', content: 'old output' },
+        { role: 'assistant', content: '', tool_calls: [{ id: 'call-new', type: 'function', function: { name: 'read', arguments: '{"path":"a"}' } }] },
+        { role: 'tool', tool_call_id: 'call-new', content: 'new output' },
+      ])
+    })
+
+    it('collapses the older duplicate to a deterministic marker when enabled', () => {
+      const wire = serializeMessages(dupHistory(), { collapseSupersededResults: true })
+      expect(wire.filter(message => message.role === 'tool')).toEqual([
+        { role: 'tool', tool_call_id: 'call-old', content: '[superseded: a later identical read call carries the current output]' },
+        { role: 'tool', tool_call_id: 'call-new', content: 'new output' },
+      ])
+    })
+
+    it('collapses older duplicates on the image path too', async () => {
+      const wire = await serializeMessagesWithImages(
+        dupHistory(),
+        imageOptions([]),
+        { collapseSupersededResults: true },
+      )
+      expect(wire.filter(message => message.role === 'tool')).toEqual([
+        { role: 'tool', tool_call_id: 'call-old', content: '[superseded: a later identical read call carries the current output]' },
+        { role: 'tool', tool_call_id: 'call-new', content: 'new output' },
+      ])
+    })
+  })
+
+  describe('stale reasoning window', () => {
+    const assistantWithReasoning = (reasoning: string, text: string): Message => createMessage({
+      role: 'assistant',
+      content: [
+        { type: 'reasoning', text: reasoning },
+        { type: 'text', text },
+      ],
+      source: { kind: 'plugin', plugin: 'test' },
+    })
+    const reasoningHistory = (): Message[] => [
+      assistantWithReasoning('old think', 'old answer'),
+      createMessage({
+        role: 'assistant',
+        content: [
+          { type: 'reasoning', text: 'mid think' },
+          { type: 'tool-call', id: ToolCallId('call-mid'), name: 'read', arguments: '{}' },
+        ],
+        source: { kind: 'plugin', plugin: 'test' },
+      }),
+      assistantWithReasoning('new think', 'new answer'),
+    ]
+    const reasoningOf = (wire: WireMessage[], index: number): string | undefined => {
+      const message = wire.filter(message => message.role === 'assistant')[index]
+      return message !== undefined && 'reasoning_content' in message ? message.reasoning_content ?? undefined : undefined
+    }
+
+    it('keeps all reasoning unless the window is set', () => {
+      const wire = serializeMessages(reasoningHistory())
+      expect(reasoningOf(wire, 0)).toBe('old think')
+      expect(reasoningOf(wire, 1)).toBe('mid think')
+      expect(reasoningOf(wire, 2)).toBe('new think')
+    })
+
+    it('drops reasoning beyond the window but always keeps tool-call turns', () => {
+      const wire = serializeMessages(reasoningHistory(), { staleReasoningKeepLast: 1 })
+      expect(reasoningOf(wire, 0)).toBeUndefined()
+      expect(reasoningOf(wire, 1)).toBe('mid think')
+      expect(reasoningOf(wire, 2)).toBe('new think')
+    })
   })
 
   it('splits mixed user text + tool results into separate wire messages', () => {

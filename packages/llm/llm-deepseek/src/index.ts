@@ -131,6 +131,18 @@ export interface Config {
   thinking?: 'enabled' | 'disabled'
   /** Default thinking effort (default `high`); `off` disables thinking per request. */
   reasoningEffort?: 'off' | 'low' | 'high' | 'max'
+  /**
+   * Collapse superseded duplicate tool results on the wire to a deterministic
+   * one-line marker, keeping only the newest identical call full (default
+   * false). The durable log is untouched; error results never collapse.
+   */
+  collapseSupersededResults?: boolean
+  /**
+   * Newest tool-call-free reasoning turns keeping reasoning on the wire;
+   * older reasoning is stripped while text stays (omission keeps all).
+   * Tool-call turns always keep reasoning: the API requires the passback.
+   */
+  staleReasoningKeepLast?: number
   /** Default per-request output cap (default 256,000); a model's own cap and explicit request values win. */
   maxTokens?: number
   /** Positive context capacity used when the selected model has no exact value (default 1,000,000). */
@@ -179,6 +191,8 @@ export const Config: z<Config> = z.object({
   baseURL: z.string(),
   thinking: z.union(['enabled', 'disabled']),
   reasoningEffort: z.union(['off', 'low', 'high', 'max']),
+  collapseSupersededResults: z.boolean().default(false),
+  staleReasoningKeepLast: z.number().step(1).min(0),
   maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_TOKENS),
   defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),
   models: z.array(catalogModel).default(DEFAULT_MODELS),
@@ -305,6 +319,10 @@ export function resolveAdapterOptions(config: Config, environment?: LaunchEnviro
     && (!Number.isSafeInteger(config.maxTokens) || config.maxTokens <= 0)) {
     throw new Error('llm-deepseek: maxTokens must be a positive safe integer')
   }
+  if (config.staleReasoningKeepLast !== undefined
+    && (!Number.isInteger(config.staleReasoningKeepLast) || config.staleReasoningKeepLast < 0)) {
+    throw new Error('llm-deepseek: staleReasoningKeepLast must be a non-negative integer')
+  }
   const streamIdleTimeoutMs = config.streamIdleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT_MS
   if (!Number.isFinite(streamIdleTimeoutMs)
     || streamIdleTimeoutMs <= 0
@@ -381,6 +399,10 @@ export function resolveAdapterOptions(config: Config, environment?: LaunchEnviro
     defaults: {
       thinking: config.thinking,
       reasoningEffort: config.reasoningEffort,
+      collapseSupersededResults: config.collapseSupersededResults ?? false,
+      ...config.staleReasoningKeepLast === undefined
+        ? {}
+        : { staleReasoningKeepLast: config.staleReasoningKeepLast },
     },
     maxTokens: config.maxTokens ?? DEFAULT_MAX_TOKENS,
     defaultContextWindow: config.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,

@@ -110,6 +110,10 @@
   name: '@deepseek-ai/dsh-tool-web'
   disabled: true
 
+- id: tool-session-query
+  name: '@deepseek-ai/dsh-tool-session-query'
+  disabled: true
+
 - id: plan-mode
   name: '@deepseek-ai/dsh-plan-mode'
   disabled: true
@@ -156,3 +160,10 @@
           * To inspect a particular line range of a file, e.g. lines 10-25, try 'sed -n 10,25p /path/to/the/file'.
           * Please avoid commands that may produce a very large amount of output.
           * Please run long lived commands in the background, e.g. 'sleep 10 &' or start a server in the background.
+
+    # The base composition no longer ships the string editor; this scenario
+    # pins it back because the recorded model creates note.txt with it.
+    - id: tool-str-replace-editor
+      name: '@deepseek-ai/dsh-tool-str-replace-editor'
+      config:
+        maxOutputChars: 16000

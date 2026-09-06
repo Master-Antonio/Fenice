@@ -48,7 +48,11 @@
                 # Route-priced request images at the provider cap; the small
                 # context window turns that visual pressure into an automatic
                 # compaction the text-only heuristic would not trigger.
-                contextWindow: 11600
+                # Recalibrated for the current base surface (distant tool
+                # families deferred out, session-query recall mounted):
+                # the text-only history must stay under threshold while
+                # text plus image tokens exceed it.
+                contextWindow: 9600
                 imageRequestTokens: 384
 
 - id: attachment-local

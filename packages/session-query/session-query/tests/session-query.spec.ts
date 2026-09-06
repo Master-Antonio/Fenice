@@ -1,4 +1,4 @@
-import { createUserMessage, createMessage } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, createMessage, createToolResultMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { describe, expect, it, vi } from 'vitest'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import SessionStore, { SessionLogOffset, SessionSeq, SESSION_FORMAT_VERSION, SessionId } from '@deepseek-ai/dsh-session'
@@ -1080,6 +1080,46 @@ describe('session-query exact reads', () => {
     ]) {
       await expect(ctx.sessionQuery.readEvent(request)).rejects.toThrow(expectCode('SESSION_QUERY_INVALID_WINDOW'))
     }
+  })
+
+  it('recovers the full original behind a pruner replacement through exact reads', async () => {
+    const ctx = await liveContext()
+    const session = ctx.sessions.create(SessionId('prune-recovery'), { meta: { createdAt: 1, cwd: '/work' } })
+    const callId = ToolCallId('call-prune')
+    const full = `head-${'x'.repeat(120)}-tail`
+    const original = createToolResultMessage({
+      callId,
+      content: [{ type: 'text', text: full }],
+      isError: false,
+    })
+    session.append('tool/result', {
+      turn: 1,
+      step: 1,
+      message: original,
+    }, { surfaceOp: 'append' })
+    // The log-level pruner shadows the original with a marker replacement
+    // citing the shadowed seq; the log keeps the full original intact.
+    const prunedBlock = original.content[0]
+    if (prunedBlock?.type !== 'tool-result') throw new Error('expected tool-result block')
+    session.append('tool/result', {
+      turn: 1,
+      step: 1,
+      message: {
+        ...original,
+        content: [{
+          ...prunedBlock,
+          content: [{ type: 'text', text: 'head\n\n[... tool result middle pruned ...]\n\ntail' }],
+        }],
+      },
+    }, {
+      surfaceOp: { op: 'replace', start: SessionSeq(0), end: SessionSeq(0) },
+      sourceEventSeqs: [SessionSeq(0)],
+    })
+
+    const read = await ctx.sessionQuery.readEvent({ sessionId: session.id, seq: SessionSeq(0) })
+    expect(JSON.stringify(read.target)).toContain(full)
+    const trace = await ctx.sessionQuery.traceEvent({ sessionId: session.id, seq: SessionSeq(0) })
+    expect(trace.replacementChain).toEqual([SessionSeq(1)])
   })
 
   it('merges authoritative persistence with live precedence and detects conflicts', async () => {

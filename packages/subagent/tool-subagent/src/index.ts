@@ -588,12 +588,15 @@ export function apply(ctx: Context, config: Config): void {
       // The section follows provider availability without its own manual
       // lifecycle: empty text is omitted from rendered prompts while the tool is
       // absent, and the registration itself stays owned by this plugin fiber.
+      // Only the batching rule lives here: background defaults, the flag
+      // condition, and the settle notice already ride the tool description,
+      // which PTC-mode agents read without sections.
       runtimeCtx.systemPrompt.section({
         name: `tool:${toolName}`,
         order: runtimeCtx.systemPrompt.getSectionOrder('TOOL_SUBAGENT'),
         text: context => mounted === undefined || runtimeCtx.tools.get(toolName, context.scope) === undefined
           ? ''
-          : `Use ${toolName} in the background by default. Start independent delegations together in one assistant message and continue useful work while they run. Set \`run_in_background: false\` only when your next action depends on that subagent's result. When a background run settles, the runtime sends you a notice containing its outcome and any final assistant message.`,
+          : `Start independent ${toolName} delegations together in one assistant message and continue useful work while they run.`,
       })
     }
   }

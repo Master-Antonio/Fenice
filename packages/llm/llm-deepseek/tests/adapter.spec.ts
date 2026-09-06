@@ -1653,6 +1653,20 @@ describe('plugin registration and config', () => {
     ]) expect(LlmDeepSeek).not.toHaveProperty(helper)
   })
 
+  it('defaults superseded-collapse off and carries an explicit opt-in to resolution', () => {
+    expect(resolveAdapterOptions({}).defaults.collapseSupersededResults).toBe(false)
+    expect(resolveAdapterOptions({ collapseSupersededResults: true }).defaults.collapseSupersededResults).toBe(true)
+  })
+
+  it('leaves the stale-reasoning window unset unless configured, and rejects a bad one', () => {
+    expect(resolveAdapterOptions({}).defaults.staleReasoningKeepLast).toBeUndefined()
+    expect(resolveAdapterOptions({ staleReasoningKeepLast: 2 }).defaults.staleReasoningKeepLast).toBe(2)
+    expect(() => resolveAdapterOptions({ staleReasoningKeepLast: -1 }))
+      .toThrow('staleReasoningKeepLast must be a non-negative integer')
+    expect(() => resolveAdapterOptions({ staleReasoningKeepLast: 1.5 }))
+      .toThrow('staleReasoningKeepLast must be a non-negative integer')
+  })
+
   it('registers the deepseek provider and unregisters on dispose (HMR safety)', async () => {
     const server = await mockServer([])
     const ctx = new Context()

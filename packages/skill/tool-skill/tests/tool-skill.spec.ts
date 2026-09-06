@@ -314,6 +314,27 @@ describe('dsh-tool-skill', () => {
     expect(renderPrompt(await ctx.systemPrompt.assemble({ agent: agentForCwd('/workspace') }))).not.toContain('<available_skills>')
   })
 
+  it('truncates catalog descriptions to 200 characters by default', async () => {
+    const home = await tempDir('tool-catalog-default-cap')
+    const ctx = await setup(home)
+    ctx.skills.register({
+      name: 'verbose-skill',
+      description: 'v'.repeat(250),
+      source: 'runtime',
+      provider: 'runtime',
+      content: 'Verbose body.',
+    })
+
+    const prefix = await composePrefix(ctx, '/workspace')
+    const catalog = prefix.find(message => message.source.kind === 'skill-catalog')
+    expect(catalog).toBeDefined()
+    if (catalog?.source.kind !== 'skill-catalog') throw new Error('expected skill catalog message')
+    const entries = catalog.source.entries
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.description).toHaveLength(200)
+    expect(entries[0]?.description.endsWith('...')).toBe(true)
+  })
+
   it('does not inject a catalog when no model-invocable skills are available', async () => {
     const home = await tempDir('tool-empty-catalog')
     const ctx = await setup(home)

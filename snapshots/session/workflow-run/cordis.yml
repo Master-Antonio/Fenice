@@ -1,0 +1,6 @@
+# Record patch for the workflow composition: the base composition no longer
+# ships the model-facing workflow tool, so recording mounts it here, mirroring
+# the replay patch.
+- insert:
+    - id: tool-workflow
+      name: '@deepseek-ai/dsh-tool-workflow'

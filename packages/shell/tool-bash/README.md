@@ -129,7 +129,7 @@ Every request in this plugin's registration scope contains the bash guidance bel
 ##### Bash guidance
 
 ```markdown
-Check the [exit code: N] marker on every bash result; investigate failures before moving on.
+Investigate failing bash results before moving on.
 ```
 
 #### Token effect

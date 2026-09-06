@@ -54,6 +54,8 @@ flowchart LR
   cfg --> plugin_dsh_base_attachment_local
   plugin_dsh_base_session_query_sqlite["session-query-sqlite<br/>@deepseek-ai/dsh-session-query-sqlite"]
   cfg --> plugin_dsh_base_session_query_sqlite
+  plugin_dsh_base_tool_session_query["tool-session-query<br/>@deepseek-ai/dsh-tool-session-query"]
+  cfg --> plugin_dsh_base_tool_session_query
   plugin_dsh_base_session_projection["session-projection<br/>@deepseek-ai/dsh-session-projection"]
   cfg --> plugin_dsh_base_session_projection
   plugin_dsh_base_storage["storage<br/>@deepseek-ai/dsh-storage"]
@@ -138,8 +140,6 @@ flowchart LR
   cfg --> plugin_dsh_base_tool_subagent_fork
   plugin_dsh_base_workflow_worker_thread["workflow-worker-thread<br/>@deepseek-ai/dsh-workflow-worker-thread"]
   cfg --> plugin_dsh_base_workflow_worker_thread
-  plugin_dsh_base_tool_workflow["tool-workflow<br/>@deepseek-ai/dsh-tool-workflow"]
-  cfg --> plugin_dsh_base_tool_workflow
   plugin_dsh_base_timeout_policy["timeout-policy<br/>@deepseek-ai/dsh-tool-call-timeout-policy"]
   cfg --> plugin_dsh_base_timeout_policy
   plugin_dsh_base_spill_local["spill-local<br/>@deepseek-ai/dsh-spill-local"]
@@ -152,12 +152,6 @@ flowchart LR
   cfg --> plugin_dsh_base_tool_result_pruner
   plugin_dsh_base_tool_todo["tool-todo<br/>@deepseek-ai/dsh-tool-todo"]
   cfg --> plugin_dsh_base_tool_todo
-  plugin_dsh_base_tool_goal["tool-goal<br/>@deepseek-ai/dsh-tool-goal"]
-  cfg --> plugin_dsh_base_tool_goal
-  plugin_dsh_base_tool_ralph["tool-ralph<br/>@deepseek-ai/dsh-tool-ralph"]
-  cfg --> plugin_dsh_base_tool_ralph
-  plugin_dsh_base_tool_str_replace_editor["tool-str-replace-editor<br/>@deepseek-ai/dsh-tool-str-replace-editor"]
-  cfg --> plugin_dsh_base_tool_str_replace_editor
   plugin_dsh_base_repeat_tool_reminder["repeat-tool-reminder<br/>@deepseek-ai/dsh-repeat-tool-reminder"]
   cfg --> plugin_dsh_base_repeat_tool_reminder
   plugin_dsh_base_web["web<br/>@deepseek-ai/dsh-web"]
@@ -205,6 +199,7 @@ flowchart LR
 | `session-persistence-jsonl` | `@deepseek-ai/dsh-session-persistence-jsonl` |
 | `attachment-local` | `@deepseek-ai/dsh-attachment-local` |
 | `session-query-sqlite` | `@deepseek-ai/dsh-session-query-sqlite` |
+| `tool-session-query` | `@deepseek-ai/dsh-tool-session-query` |
 | `session-projection` | `@deepseek-ai/dsh-session-projection` |
 | `storage` | `@deepseek-ai/dsh-storage` |
 | `storage-json` | `@deepseek-ai/dsh-storage-json` |
@@ -247,16 +242,12 @@ flowchart LR
 | `tool-subagent` | `@deepseek-ai/dsh-tool-subagent` |
 | `tool-subagent-fork` | `@deepseek-ai/dsh-tool-subagent` |
 | `workflow-worker-thread` | `@deepseek-ai/dsh-workflow-worker-thread` |
-| `tool-workflow` | `@deepseek-ai/dsh-tool-workflow` |
 | `timeout-policy` | `@deepseek-ai/dsh-tool-call-timeout-policy` |
 | `spill-local` | `@deepseek-ai/dsh-spill-local` |
 | `spill-policy` | `@deepseek-ai/dsh-spill-policy` |
 | `session-checkpoint-policy` | `@deepseek-ai/dsh-session-checkpoint-policy` |
 | `tool-result-pruner` | `@deepseek-ai/dsh-compaction-tool-result-pruner` |
 | `tool-todo` | `@deepseek-ai/dsh-tool-todo` |
-| `tool-goal` | `@deepseek-ai/dsh-tool-goal` |
-| `tool-ralph` | `@deepseek-ai/dsh-tool-ralph` |
-| `tool-str-replace-editor` | `@deepseek-ai/dsh-tool-str-replace-editor` |
 | `repeat-tool-reminder` | `@deepseek-ai/dsh-repeat-tool-reminder` |
 | `web` | `@deepseek-ai/dsh-web` |
 | `web-search-deepseek` | `@deepseek-ai/dsh-web-search-deepseek` |

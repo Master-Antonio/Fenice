@@ -659,6 +659,7 @@ export class PiAiAdapter extends LlmAdapter {
           compactionPointer,
           spillStore,
           promptCacheStablePrefix,
+          collapseSupersededResults: profile.collapseSupersededResults,
         })
         : await toPiContext({ ...options, signal: watchdog.signal }, {
           attachments,
@@ -672,6 +673,7 @@ export class PiAiAdapter extends LlmAdapter {
           compactionPointer,
           spillStore,
           promptCacheStablePrefix,
+          collapseSupersededResults: profile.collapseSupersededResults,
         }, onReplayDegrade)
       // Agent-Lab promptCacheStablePrefix: a tool block whose ORDER drifts
       // between turns (plugin load order, config merges) silently invalidates

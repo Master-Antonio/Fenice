@@ -110,10 +110,11 @@ const GOAL_VALUE_SCHEMA = {
 
 /** Render policy guidance with its deployment-selected blocked threshold. */
 function guidance(blockedAfter: number): string {
+  // Cross-tool orchestration only. The per-tool rules (infer intent on a
+  // direct human request, single-turn exclusion, get-before-update) stay in
+  // their tool descriptions, which PTC-mode agents read without sections.
   return 'Use goal tools for one long-running completion objective in the current session. '
-    + 'create_goal may infer goal intent from a direct human request in any language; do not '
-    + 'create a goal for routine single-turn work. Call get_goal before update_goal and copy its '
-    + 'exact goal_id and revision. After session resume or fork, an active goal is disarmed: when '
+    + 'After session resume or fork, an active goal is disarmed: when '
     + 'a human asks to continue or resume in any wording or language, use update_goal action '
     + 'resume to rearm it. Mark complete only when the objective is actually achieved. Mark '
     + `blocked only after the same blocking condition persists for at least ${blockedAfter} `

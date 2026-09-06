@@ -52,9 +52,7 @@
 
 # Keyless counterpart to session-query.cordis.yml: the nested snapshot overlay
 # supplies replay plus deterministic private spill storage and its byte limit.
-- insert:
-    - id: tool-session-query
-      name: '@deepseek-ai/dsh-tool-session-query'
+# The session-query tool itself rides the base composition.
 
 - id: timeout-policy
   name: '@deepseek-ai/dsh-tool-call-timeout-policy'

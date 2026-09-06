@@ -136,8 +136,14 @@ describe('goal tool registration and presentation', () => {
         .toEqual({ kind: 'exclusive' })
     }
     const section = (await ctx.systemPrompt.assemble()).sections.find(item => item.name === 'tool:goal')
-    expect(section?.text).toContain('infer goal intent')
     expect(section?.text).toContain('at least 5 consecutive goal rounds')
+    // Orchestration-only rules live in the section; per-tool sentences stay
+    // in their descriptions so PTC-mode agents (schemas only) keep them.
+    expect(section?.text).not.toContain('infer goal intent')
+    expect(section?.text).not.toContain('routine single-turn')
+    expect(section?.text).not.toContain('Call get_goal before update_goal')
+    const schemas = ctx.tools.schemas()
+    expect(schemas.find(item => item.name === 'create_goal')?.description).toContain('infer')
 
     await fiber.dispose()
     expect(ctx.tools.get('get_goal')).toBeUndefined()

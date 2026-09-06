@@ -1,4 +1,10 @@
-# Replay-backed goal patch over the shipped headless profile.
+# Replay-backed goal patch over the shipped headless profile. The base
+# composition no longer ships the model-facing goal tools, so this scenario
+# pins the row back: it exercises persisted goal tools end to end.
+- insert:
+    - id: tool-goal
+      name: '@deepseek-ai/dsh-tool-goal'
+
 - id: headless-startup
   disabled: true
 

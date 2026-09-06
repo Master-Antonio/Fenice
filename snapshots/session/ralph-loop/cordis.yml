@@ -1,0 +1,9 @@
+# Record patch for the ralph composition: the base composition no longer
+# ships the model-facing ralph tool, so recording mounts it here with the
+# exact config the base row carried, mirroring the replay patch.
+- insert:
+    - id: tool-ralph
+      name: '@deepseek-ai/dsh-tool-ralph'
+      config:
+        subagentProvider: spawn
+        maxRounds: 64

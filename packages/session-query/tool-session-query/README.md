@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-`dsh-tool-session-query` gives the model five read-only tools over session history: `session_search`, `session_event_search`, `session_trace`, `session_event_trace`, and `session_event_read`. The tools are workspace-authorized — a model can only reach sessions whose `cwd` exactly matches its own caller session — and results are cursor-free plain text, so the model can search prior work and follow a useful hit into its lineage or exact event data. The package is opt-in and not mounted by shipped host compositions: mounting it adds one concise guidance section and the five schemas to every request. Configuration and usage come first; the implementation internals live in a collapsible developer section below.
+`dsh-tool-session-query` gives the model five read-only tools over session history: `session_search`, `session_event_search`, `session_trace`, `session_event_trace`, and `session_event_read`. The tools are workspace-authorized — a model can only reach sessions whose `cwd` exactly matches its own caller session — and results are cursor-free plain text, so the model can search prior work and follow a useful hit into its lineage or exact event data. The shared base composition mounts the package with a lazily opened full-text index, so recall costs five schemas per request but no SQLite work until the first search call. Configuration and usage come first; the implementation internals live in a collapsible developer section below.
 
 ## Table of Contents
 
@@ -148,7 +148,7 @@ Prefix-stable while tool visibility and definitions are unchanged.
 
 #### What the model sees
 
-Each successful call emits one plain-text block. Search results include titles and best-match excerpts; traces include all authorized relationships; event reads include unabridged target JSON. The generic spill policy may replace oversized inline text with its preview, opaque locator, and retrieval hint.
+Each successful call emits one plain-text block. Search results include titles and best-match excerpts; traces include all authorized relationships; event reads include unabridged target JSON. The generic spill policy may replace oversized inline text with its preview, opaque locator, and retrieval hint. Event reads serve the log-intact original behind a tool-result-pruner replacement, so a pruned wire marker never destroys the recoverable text; follow the replacement chain with session_event_trace when lineage matters.
 
 #### Token effect
 

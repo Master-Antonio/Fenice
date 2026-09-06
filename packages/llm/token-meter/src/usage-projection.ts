@@ -8,7 +8,7 @@ import type {} from '@deepseek-ai/dsh-llm-retry/types'
 import { SessionSeq } from '@deepseek-ai/dsh-session'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
-import type { ContextPressureProjection, TokenUsageProjection } from './projection.ts'
+import type { ContextPressureProjection, CacheEfficiencyProjection, TokenUsageProjection } from './projection.ts'
 import { foldSurfaceProjection } from './surface-projection.ts'
 
 const zeroBuckets = (): TokenUsageProjection => ({
@@ -91,6 +91,7 @@ function usageOf(event: SessionEvent): TokenUsage | undefined {
 declare module '@deepseek-ai/dsh-session-projection/types' {
   interface SessionProjectionStateMap {
     tokenUsage: TokenUsageState
+    cacheEfficiency: CacheEfficiencyState
     contextPressure: ContextPressureState
   }
 }
@@ -151,6 +152,99 @@ export const tokenUsageProjectionDefinition = {
   },
   wire: { viewSchema: projectionSchema, view: state => state.totals },
 } satisfies ProjectionDefinition<'tokenUsage', TokenUsageState>
+
+/** Cache-efficiency unit state: prompt buckets plus the last settled sample for retry replacement. */
+const cacheEfficiencyStateSchema = z.object({
+  uncachedInputTokens: z.number().int().nonnegative(),
+  cacheReadTokens: z.number().int().nonnegative(),
+  cacheWriteTokens: z.number().int().nonnegative(),
+  last: z.object({
+    turn: z.number().int().nonnegative(),
+    step: z.number().int().nonnegative(),
+    buckets: z.object({
+      uncachedInputTokens: z.number().int().nonnegative(),
+      cacheReadTokens: z.number().int().nonnegative(),
+      cacheWriteTokens: z.number().int().nonnegative(),
+    }),
+  }).nullable(),
+}).strict()
+
+type CacheEfficiencyState = z.infer<typeof cacheEfficiencyStateSchema>
+
+const efficiencyViewSchema: z.ZodType<CacheEfficiencyProjection> = z.object({
+  uncachedInputTokens: z.number().int().nonnegative(),
+  cacheReadTokens: z.number().int().nonnegative(),
+  cacheWriteTokens: z.number().int().nonnegative(),
+  hitRate: z.number().min(0).max(1).optional(),
+}).strict().transform(({ uncachedInputTokens, cacheReadTokens, cacheWriteTokens, hitRate }) => ({
+  uncachedInputTokens,
+  cacheReadTokens,
+  cacheWriteTokens,
+  ...hitRate === undefined ? {} : { hitRate },
+}))
+
+/**
+ * Token-meter's cache-efficiency projection unit: the cached share of billed
+ * prompt tokens, folded from the same provider-reported usage samples as the
+ * usage unit, so efficiency is measurable on every route.
+ */
+export const cacheEfficiencyProjectionDefinition = {
+  key: 'cacheEfficiency',
+  stateVersion: 1,
+  stateSchema: cacheEfficiencyStateSchema,
+  init: () => ({
+    uncachedInputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    last: null,
+  }),
+  apply: (state, event) => {
+    if (event.type === 'llm/retry-started') {
+      return state.last?.turn === event.data.turn && state.last.step === event.data.step
+        ? { ...state, last: null }
+        : state
+    }
+    if (event.type !== 'assistant/message' && event.type !== 'assistant/attempt') {
+      return state
+    }
+    const sample = usageOf(event)
+    if (sample === undefined) return state
+    const { turn, step } = event.data
+    const buckets = {
+      uncachedInputTokens: sample.inputTokens,
+      cacheReadTokens: sample.cacheReadTokens ?? 0,
+      cacheWriteTokens: sample.cacheWriteTokens ?? 0,
+    }
+    const previous = state.last !== null
+      && state.last.turn === turn
+      && state.last.step === step
+      ? state.last.buckets
+      : undefined
+    if (previous !== undefined
+      && previous.uncachedInputTokens === buckets.uncachedInputTokens
+      && previous.cacheReadTokens === buckets.cacheReadTokens
+      && previous.cacheWriteTokens === buckets.cacheWriteTokens) return state
+    const subtract = (total: number, was: number | undefined, is: number): number => total - (was ?? 0) + is
+    return {
+      uncachedInputTokens: subtract(state.uncachedInputTokens, previous?.uncachedInputTokens, buckets.uncachedInputTokens),
+      cacheReadTokens: subtract(state.cacheReadTokens, previous?.cacheReadTokens, buckets.cacheReadTokens),
+      cacheWriteTokens: subtract(state.cacheWriteTokens, previous?.cacheWriteTokens, buckets.cacheWriteTokens),
+      last: { turn, step, buckets },
+    }
+  },
+  wire: {
+    viewSchema: efficiencyViewSchema,
+    view: (state) => {
+      const prompt = state.uncachedInputTokens + state.cacheReadTokens + state.cacheWriteTokens
+      return {
+        uncachedInputTokens: state.uncachedInputTokens,
+        cacheReadTokens: state.cacheReadTokens,
+        cacheWriteTokens: state.cacheWriteTokens,
+        ...prompt === 0 ? {} : { hitRate: state.cacheReadTokens / prompt },
+      }
+    },
+  },
+} satisfies ProjectionDefinition<'cacheEfficiency', CacheEfficiencyState>
 
 /**
  * Token-meter's context-occupancy projection unit.

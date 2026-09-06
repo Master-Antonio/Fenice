@@ -405,7 +405,7 @@ describe('bash tool', () => {
       'tool:bash',
       'test:after-bash',
     ])
-    expect(section?.text).toContain('[exit code: N]')
+    expect(section?.text).toContain('Investigate failing bash results')
   })
 
   it('unregisters everything when the plugin fiber is disposed (HMR safety)', async () => {

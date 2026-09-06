@@ -1,6 +1,6 @@
-# Filesystem-scenario overlay: the sandboxed filesystem stack already lives in
-# the base cordis.yml, so this overlay adds only the local tool-result spill
-# storage those scenarios exercise.
+# Local tool-result spill storage for the dedicated spill scenario. The
+# session-query tool itself now rides the base composition; this overlay keeps
+# only the private spill storage and its byte limit.
 
 - id: spill-local
   name: '@deepseek-ai/dsh-spill-local'
@@ -11,12 +11,6 @@
   name: '@deepseek-ai/dsh-spill-policy'
   config:
     maxInlineBytes: !!js process.env.DSH_SNAPSHOT && 800 || 50000
-
-# Explicit session-query tool opt-in for the dedicated spill scenario. The
-# nested filesystem overlay supplies private spill storage and its byte limit.
-- insert:
-    - id: tool-session-query
-      name: '@deepseek-ai/dsh-tool-session-query'
 
 - id: timeout-policy
   name: '@deepseek-ai/dsh-tool-call-timeout-policy'

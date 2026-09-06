@@ -1,7 +1,8 @@
 version: 1
 scenario: workflow-run
 profile: headless
-composition: default
+composition: workflow
 recording: live
 header:
   class: default
+  pin: true

@@ -67,6 +67,8 @@ A request selects the route with `provider: deepseek-official`; the model id pas
 | `fileRefreshMarginSeconds` | `3,600` | Remaining lifetime below which an id is replaced |
 | `fileQuotaCleanupBatch` | `100` | Oldest harness-owned files removed before one quota retry |
 | `retryPolicy` | normal, 5 retries | Provider-owned retry policy executed by `dsh-llm-retry` |
+| `collapseSupersededResults` | `false` | Collapse superseded duplicate tool results to a deterministic marker, keeping only the newest identical call full; error results never collapse |
+| `staleReasoningKeepLast` | off | Newest tool-call-free reasoning turns keeping reasoning; older reasoning is stripped while text stays; tool-call turns always keep reasoning |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-llm-deepseek) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -150,7 +152,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 #### What the model sees
 
-The selected DeepSeek model receives the harness system prompt, message history, tool schemas, stop sequences, and call config (`maxTokens`, `reasoningEffort`, `temperature`) without adapter-authored prompt prose. Provider-specific request-extension fields remain outside model input. The vision model normally receives retained user and tool-result images as Files API references beside attachment handles and request-preview dimensions. It also receives a normalized-object path when the current execution filesystem maps the attachment provider's host object; the descriptor marks this copy read-only and warns that normalization may have resized or re-encoded the upload. A Files resolution failure sends all retained images as inline data URLs instead, and an over-budget older image keeps the access resolved for that request in its placeholder. Reasoning content from a prior assistant turn is passed back verbatim, whether or not that turn called a tool.
+The selected DeepSeek model receives the harness system prompt, message history, tool schemas, stop sequences, and call config (`maxTokens`, `reasoningEffort`, `temperature`) without adapter-authored prompt prose. Provider-specific request-extension fields remain outside model input. The vision model normally receives retained user and tool-result images as Files API references beside attachment handles and request-preview dimensions. It also receives a normalized-object path when the current execution filesystem maps the attachment provider's host object; the descriptor marks this copy read-only and warns that normalization may have resized or re-encoded the upload. A Files resolution failure sends all retained images as inline data URLs instead, and an over-budget older image keeps the access resolved for that request in its placeholder. Reasoning content from a prior assistant turn is passed back verbatim, whether or not that turn called a tool, unless `staleReasoningKeepLast` drops reasoning past its window on tool-call-free turns.
 
 #### Token effect
 

@@ -1,5 +1,11 @@
 # Add PTC mode and Cordis tools to the base spawn/workflow stack, exercising
-# all four boundaries in one ACP snapshot.
+# all four boundaries in one ACP snapshot. The base composition no longer
+# ships the model-facing workflow tool, so this composition pins it back for
+# the toolchain scenarios that recorded `workflow` calls.
+- insert:
+    - id: tool-workflow
+      name: '@deepseek-ai/dsh-tool-workflow'
+
 - id: agent-default-model
   name: '@deepseek-ai/dsh-agent-default-model'
   config:

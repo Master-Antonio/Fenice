@@ -113,6 +113,28 @@ describe('compactionPointer unit tests', () => {
     })
   })
 
+  it('evicts the oldest entries beyond maxEntries and removes their spill files', () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'dsh-compaction-test-'))
+    try {
+      const store = new CompactionSpillStore({ spillDir: tempDir, maxEntries: 2 })
+      store.store('aaa', 'cp_aaaaaaaaaaaaaaaa')
+      store.store('bbb', 'cp_bbbbbbbbbbbbbbbb')
+      store.store('ccc', 'cp_cccccccccccccccc')
+      expect(store.size).toBe(2)
+      expect(store.has('cp_aaaaaaaaaaaaaaaa')).toBe(false)
+      expect(existsSync(join(tempDir, 'cp_aaaaaaaaaaaaaaaa.txt'))).toBe(false)
+      expect(store.get('cp_bbbbbbbbbbbbbbbb')).toBe('bbb')
+      expect(store.get('cp_cccccccccccccccc')).toBe('ccc')
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a non-positive maxEntries', () => {
+    expect(() => new CompactionSpillStore({ spillDir: null, maxEntries: 0 }))
+      .toThrow(/maxEntries.*must be a positive integer/)
+  })
+
   describe('compactToolResultText with compactionPointer', () => {
     const rawOversized = 'HEAD_DATA_' + 'middle_padding_'.repeat(200) + '_TAIL_DATA'
 

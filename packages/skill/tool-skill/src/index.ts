@@ -24,7 +24,7 @@ import {
 export const name = 'tool-skill'
 export const inject = ['agents', 'tools', 'skills']
 
-const DEFAULT_CATALOG_DESCRIPTION_MAX_LENGTH = 500
+const DEFAULT_CATALOG_DESCRIPTION_MAX_LENGTH = 200
 /**
  * Durable provider and item records for one published session skill catalog. The catalog is a
  * `catalog`-form context, so it records the entries it published beside the
@@ -251,22 +251,37 @@ export function apply(ctx: Context, config: Config = {}): void {
   })
 }
 
+/**
+ * Shared catalog shell: both the initial publication and the replacement
+ * reuse the same `<system-reminder>` framing and `<available_skills>` block,
+ * differing only in their opening and closing guidance lines.
+ */
+function catalogMessageText(opening: string, entries: SkillCatalogSource['entries'], closing: string[]): string {
+  return [
+    '<system-reminder>',
+    opening,
+    '',
+    '<available_skills>',
+    ...renderCatalogEntries(entries),
+    '</available_skills>',
+    '',
+    ...closing,
+    '</system-reminder>',
+  ].join('\n')
+}
+
 function renderCatalogMessage(entries: SkillCatalogSource['entries']): UserMessage {
   return createUserMessage({
     content: [{
       type: 'text',
-      text: [
-        '<system-reminder>',
+      text: catalogMessageText(
         'A skill is a reusable set of task-specific instructions. The following skills are available in this session:',
-        '',
-        '<available_skills>',
-        ...renderCatalogEntries(entries),
-        '</available_skills>',
-        '',
-        "If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.",
-        'A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.',
-        '</system-reminder>',
-      ].join('\n'),
+        entries,
+        [
+          "If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.",
+          'A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.',
+        ],
+      ),
     }],
     source: {
       kind: 'skill-catalog',
@@ -289,17 +304,11 @@ function renderCatalogUpdate(entries: SkillCatalogSource['entries']): UserMessag
   return createUserMessage({
     content: [{
       type: 'text',
-      text: [
-        '<system-reminder>',
+      text: catalogMessageText(
         'The available skill catalog changed. This complete catalog replaces every earlier available-skills list in this session:',
-        '',
-        '<available_skills>',
-        ...renderCatalogEntries(entries),
-        '</available_skills>',
-        '',
-        ...availability,
-        '</system-reminder>',
-      ].join('\n'),
+        entries,
+        availability,
+      ),
     }],
     source: {
       kind: 'skill-catalog',
