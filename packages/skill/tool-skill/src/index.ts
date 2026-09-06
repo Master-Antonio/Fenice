@@ -24,7 +24,7 @@ import {
 export const name = 'tool-skill'
 export const inject = ['agents', 'tools', 'skills']
 
-const DEFAULT_CATALOG_DESCRIPTION_MAX_LENGTH = 200
+const DEFAULT_CATALOG_DESCRIPTION_MAX_LENGTH = 120
 /**
  * Durable provider and item records for one published session skill catalog. The catalog is a
  * `catalog`-form context, so it records the entries it published beside the

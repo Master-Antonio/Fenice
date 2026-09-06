@@ -314,12 +314,12 @@ describe('dsh-tool-skill', () => {
     expect(renderPrompt(await ctx.systemPrompt.assemble({ agent: agentForCwd('/workspace') }))).not.toContain('<available_skills>')
   })
 
-  it('truncates catalog descriptions to 200 characters by default', async () => {
+  it('truncates catalog descriptions to 120 characters by default', async () => {
     const home = await tempDir('tool-catalog-default-cap')
     const ctx = await setup(home)
     ctx.skills.register({
       name: 'verbose-skill',
-      description: 'v'.repeat(250),
+      description: 'v'.repeat(150),
       source: 'runtime',
       provider: 'runtime',
       content: 'Verbose body.',
@@ -331,7 +331,7 @@ describe('dsh-tool-skill', () => {
     if (catalog?.source.kind !== 'skill-catalog') throw new Error('expected skill catalog message')
     const entries = catalog.source.entries
     expect(entries).toHaveLength(1)
-    expect(entries[0]?.description).toHaveLength(200)
+    expect(entries[0]?.description).toHaveLength(120)
     expect(entries[0]?.description.endsWith('...')).toBe(true)
   })
 
