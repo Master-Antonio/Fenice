@@ -7,6 +7,7 @@ import { AGENT_NOTE_CLASSES, agentNoteRoot } from './agent-note-tree.ts'
 import {
   extendArchiveManifest,
   parseArchiveManifest,
+  reconcileSwitcherRetirement,
   renderArchiveManifest,
   validateArchiveArtifacts,
   validateArchiveManifestExtension,
@@ -87,12 +88,20 @@ if (existsSync(manifestPath)) {
 const baselineRef = process.env.DSH_ARCHIVE_BASE_REF ?? 'HEAD'
 try {
   const baseline = readBaselineManifest(baselineRef)
-  errors.push(...validateArchiveManifestExtension(baseline, manifest))
+  const reconciled = reconcileSwitcherRetirement(baseline, manifest, artifacts, (path) => {
+    try {
+      return runGit(['show', `${baselineRef}:${manifestRepoPath.replace('manifest.json', path)}`])
+    } catch {
+      return undefined
+    }
+  })
+  errors.push(...reconciled.errors)
+  errors.push(...validateArchiveManifestExtension(baseline, manifest, reconciled.allowed))
 } catch (error: unknown) {
   errors.push(`archived/manifest.json: cannot read baseline ${JSON.stringify(baselineRef)}: ${error instanceof Error ? error.message : String(error)}`)
 }
 
-const extended = extendArchiveManifest(manifest, artifacts)
+const extended = extendArchiveManifest(manifest, artifacts, { reSeal: writeMode })
 errors.push(...extended.errors)
 if (!writeMode) {
   for (const path of extended.added) errors.push(`${path}: archived artifact is not sealed in manifest.json`)

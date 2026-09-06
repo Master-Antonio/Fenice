@@ -5,8 +5,6 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-attachment
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 You can attach images and generic files to prompts, and the harness keeps them durably: each source image is admitted and normalized before your message is processed, while any other file is stored byte-for-byte with no format or size limits, and both reappear in conversation history across restarts of the same session. The shipped `dsh` composition enables this with no setup. Browser paths, provider URLs, local storage paths, and base64 never enter durable session events. Images accept raster formats (PNG, JPEG, WebP, GIF) under deployment limits; files accept anything, and the model reads a stored file on demand from its saved read-only path instead of receiving its bytes. Stored objects are never deleted automatically, and audio and video have no dedicated handling yet.
@@ -112,7 +110,6 @@ Adding an image changes the provider request and therefore invalidates the affec
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
-
 
 These limits describe what image attachments can and cannot do; they are current package constraints, not a task backlog.
 

@@ -2,8 +2,6 @@
 
 Status: implemented
 
-English | [中文](2026-09-05-model-row-reasoning-efforts-editor.zh.md)
-
 ## Problem
 
 A pi-ai model's reasoning behavior is configured per model: the `reasoningEfforts` dict names the levels a model offers and the wire value each one sends, and the field is the only way to give a hand-declared model reasoning at all. Until now it existed only in `settings.yaml`, so every new model meant hand-writing a nested YAML dict — indented maps, quoted values, and the `off: null` convention — with no help from the Models page, where everything else about a model row is editable. The failure mode was concrete: malformed indentation (including tabs pasted from other editors) in real settings files, and a dict the adapter then refuses at load.

@@ -5,8 +5,6 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-mcp-server
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 `dsh-mcp-server` publishes the harness's registered tools and session operations over the standard Model Context Protocol, so external MCP clients can drive one Fenice deployment's live tool surface without the TypeScript SDK. It is a Fenice fork addition, not an upstream harness package. The service wraps the ordinary tool registry and session controller — it registers no new model-facing tools of its own, and every call executes through the same permission and approval machinery as a native tool call.

@@ -5,8 +5,6 @@ kind: "package-library"
 
 # @deepseek-ai/dsh-sdk-client
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 `dsh-sdk-client` lets TypeScript programs drive a DeepSeek Harness runtime as a subprocess over stdio JSON-RPC. With `DeepSeekHarness` you can spawn the runtime, open sessions, send prompts, and collect the final response plus the event and notification streams; `HarnessClient` gives explicit control over the protocol layer. It is the design twin of the [Python SDK](../../../python/README.md), which shares the same runtime peer and protocol. The launch spec is explicit — callers may name the runtime executable via `dshBin`, omitted resolves the same-version `@deepseek-ai/dsh` package's bin, and the client constructs the arguments — so this client suits repository-adjacent TypeScript consumers such as the SDK subagent backend and automation that know which runtime they are launching. It is a pure library: it registers nothing on a Cordis context, and the runtime it spawns is a complete harness whose composition its own `cordis.yml` decides.
@@ -115,7 +113,6 @@ None in the client process. Profile, patch, provider, model, and history choices
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
-
 
 These limits define when the client is a poor fit or needs special care. They are current package constraints, not a comparison with other SDK clients or a task backlog.
 

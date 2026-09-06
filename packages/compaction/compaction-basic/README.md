@@ -5,8 +5,6 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-compaction-basic
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 `dsh-compaction-basic` keeps long agent conversations working near the model's context limit. As token pressure builds, it automatically condenses the oldest part of the conversation into a summary and keeps the recent part intact; after a context-overflow error it condenses and retries. You can also condense on demand with `/compact` from `dsh-command-compact`, and mount `dsh-compaction-tool-result-pruner` to trim oversized tool outputs first. Condensation costs one extra model request that reads the selected history and writes the summary; only the summary text is kept. It condenses derived history only — it cannot shrink the system prompt, tools, or session prefix, and one indivisible unit such as a single huge tool call cannot be split.
@@ -233,7 +231,6 @@ The replayed system prompt, tools, and shadowed-region messages match the conver
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
-
 
 These limits define when automatic condensation is a poor fit or needs special care; they are the current package constraints.
 

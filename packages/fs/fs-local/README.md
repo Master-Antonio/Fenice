@@ -5,8 +5,6 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-fs-local
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 `dsh-fs-local` implements the `ctx.fs` filesystem contract ([`dsh-fs`](../fs/README.md)) on the host filesystem: loading it as a plugin populates `ctx.fs` with real file access — resolve, read, list, atomic write, and literal edit against the local machine's files. Relative paths resolve from a configurable base directory, and the same file reached through different paths or symlinks shares one identity. Because this backend shares the host filesystem, it can also map an absolute host path into the process path used by this execution world. Writes are atomic and preserve file permissions; the optional version guard makes stale overwrites fail instead of clobbering. Choose it when a process needs direct, unconfined access to host files; choose `fs-sandbox` when mutations must be confined, or `fs-e2b` when file state belongs in a remote execution world.
@@ -122,7 +120,6 @@ No direct invalidation; the named consumer owns any request-prefix changes.
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
-
 
 These limits define when the local backend is a poor fit or needs special operational care. They are current package constraints, not a general filesystem comparison or a task backlog.
 

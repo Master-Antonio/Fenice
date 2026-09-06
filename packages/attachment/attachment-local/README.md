@@ -5,8 +5,6 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-attachment-local
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 This package provides the local storage and image-processing backend for attachments: source images are validated, oriented, stripped of metadata and color profiles, normalized to 8-bit sRGB/sRGBA, and saved below `DSH_HOME`; route-specific request versions are derived and cached separately, and generic files are saved byte-for-byte with no admission limits. Streamed file writes and reads use bounded chunks; writes hash into a private staging object before atomic publication, and reads verify the recorded byte length and digest without a whole-file memory copy. It is what the shipped `dsh` composition uses, so durable attachments work without configuration. Identical bytes occupy one canonical object even when uploads use different display names; each model-facing name is a hard link to that object. Concurrent reads of one request variant share work, and stored images stay readable after later admission-limit changes. Storage is local to this machine; other hosts cannot read these objects, and objects are never deleted automatically.
@@ -129,7 +127,6 @@ Normalization and request projection are deterministic. An unchanged attachment 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
-
 
 These limits describe what this storage can and cannot do; they are current package constraints.
 

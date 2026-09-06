@@ -5,8 +5,6 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-llm-replay
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 `dsh-llm-replay` makes snapshot tests run without an API key: it installs a replay LLM adapter that serves model streams reconstructed from a recorded session JSONL fixture, so a test boots the real agent against a fixed transcript. The fixture is a projection of the persisted session log — each `assistant/message` or `assistant/attempt` embeds one model-call stream, and an explicitly marked local compaction call replays as one canonical stream. A `replay.override.json` sidecar covers what a settlement cannot reconstruct: a throw before any chunk, a cancel/hang, or an injected retry. Live sessions bind to recorded scripts by first-call order, so parent-and-subagent scenarios each get their own script. It is the model source behind the ACP and headless snapshot suites and the Web browser e2e lane.
@@ -139,7 +137,6 @@ None; this package neither assembles nor sends a provider request.
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
-
 
 These limits define when replay cannot stand in for a live model. They are current package constraints, not a task backlog.
 

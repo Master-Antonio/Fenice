@@ -5,8 +5,6 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-hooks-codex
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 `dsh-hooks-codex` runs the hooks from your existing Codex config — a `hooks.json` — during agent runs, so the behavior you already wrote keeps working without rewriting it. Five of Codex's hook points fire at the matching moments: when a session starts, when a prompt is submitted, before and after a tool runs, and when the run is about to stop. A hook can block a prompt or tool call with a message the model sees, attach extra context to the conversation, or force the run to continue. Choose it when you have Codex command hooks and want them to work in the harness as-is; behavior with no Codex equivalent belongs in a native plugin.
@@ -163,7 +161,6 @@ A blocked prompt sends no request and invalidates nothing. Denial, feedback, and
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
-
 
 These limits describe what your Codex hooks cannot do through this bridge yet, and where behavior differs from the reference tool. They are current package constraints, not a task backlog.
 

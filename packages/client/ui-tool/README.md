@@ -5,8 +5,6 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-client-ui-tool
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 `dsh-client-ui-tool` is the client Tool presentation plugin of the dsh web client: it renders every tool call in the conversation. `ui-conversation` dispatches each ordered `tool-call` Conversation Node through the matching key of `conversation.chat.node`; this package renders its root and Code Dispatch children, then dispatches every atomic call through the keyed `tool.call.toolview` slot. Unregistered Tool names use the generic card. Business UI packages register only their wire Tool names and atomic views — they do not pair Session events, rebuild the transcript, or own root/subcall topology, because the Runtime remains authoritative for call/result pairing, lifecycle, and recursive `subCalls` projection.
@@ -61,7 +59,6 @@ The package realizes one dispatch rule: atomic Tool views are keyed by wire Tool
 
 ### Details and cards
 
-
 The package fills `conversation.details.tool` with `ToolDetails`. Row and Details renderers share one pure card model for each terminal, read, diff, search, and web card; the image card is row-only because its gallery renders through the tool-owned `tool.call.images` slot the details panel does not declare. These models validate raw call arguments, result content, failure state, persisted metadata, Code Dispatch `parentCallId`, and Session path facts. Unsupported or malformed inputs use flattened Tool result text. Card-specific limits and fallback rules remain in the owning [terminal](../../../.agents/notes/implemented/feature/2026-07-28-web-terminal-card.md), [diff](../../../.agents/notes/implemented/feature/2026-07-30-web-diff-card.md), [read](../../../.agents/notes/implemented/feature/2026-07-30-web-read-card-frontend.md), [image](../../../.agents/notes/implemented/feature/2026-08-20-tool-card-image-results.md), [search](../../../.agents/notes/implemented/feature/2026-07-30-web-search-card.md), [web](../../../.agents/notes/implemented/feature/2026-07-30-web-result-card-frontend.md), and [question](../../../.agents/notes/implemented/feature/2026-07-29-ask-question-web-presentation.md) notes.
 </details>
 
@@ -92,7 +89,6 @@ None; this package neither assembles nor sends a provider request.
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
-
 
 These limits define the dispatch depth and the view ownership; they are current package constraints.
 

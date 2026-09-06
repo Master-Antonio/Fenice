@@ -5,8 +5,6 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-client-ui-settings-agent-lab
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 `ui-settings-agent-lab` renders the Agent Lab settings section: one place to read and toggle the deployment's experiment flags (Fenice additions such as the tier router, the self-healing loop, compaction spill, and the session truncate RPC) plus the path of the external JSONL telemetry file. It is a Fenice fork addition, not an upstream harness package. The section writes through the ordinary settings document, so every flag it flips is validated by the owning feature's config schema and takes effect through that feature's own resolution path.

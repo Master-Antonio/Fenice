@@ -16,8 +16,6 @@ kind: "package-reference"
 ```markdown
 # @deepseek-ai/dsh-<name>
 
-English | [中文](README.zh.md)
-
 ## Summary
 
 Three to five sentences on what a user or agent can DO with the package: outcomes, when to choose it, main cost, most important boundary. Never its role, type, or internal identity.

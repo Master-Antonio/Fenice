@@ -1,192 +1,73 @@
-# Studio efficienza LLM — Fenice (settembre 2026)
+# LLM efficiency study — Fenice (September 2026, revised)
 
-Studio prodotto da 4 subagenti specializzati (anatomia del contesto, economia tool-result/compaction,
-cache e request economics, scan upstream/esterno) più sintesi manuale. Evidenze come `file:line`.
-Stime: 1 token ≈ 4 char; payload JSON-heavy possibili sottostime fino a ~30%. Nessun dato inventato:
-dove la verifica non era possibile è dichiarato.
+This study extends the September 2026 efficiency audit (four specialized subagents: context anatomy, tool-result and compaction economy, cache and request economics, upstream and external scan, plus manual synthesis). Since the audit, its P0 items 1–3 shipped as defaults (`.agents/notes/implemented/feature/2026-09-05-provider-neutral-request-economy-defaults.md`): wire-level schema canonicalization, `promptCacheStablePrefix` defaulting ON, the 32,768-character web-fetch cap with head/tail cut, and per-check tool-result pruning that spares the freshest result. What follows keeps the verified cost map, corrects the per-provider picture with checked vendor documentation, lists the problems still open in this tree with file pointers, and ranks the remaining work so every token saved keeps identical behavior. Estimates use 1 token ≈ 4 characters; JSON-heavy payloads may undercount by up to ~30%. Nothing below is invented: unverifiable claims are marked as such.
 
-## Stato attuale (cosa il fork GIÀ fa — non riproposto)
+## 1. What the fork already does (do not re-propose)
 
-Micro-compaction inline + spill store con `[compaction_pointer: <id>]`; `maxToolResultChars` (32.768);
-summary compaction (`compaction-basic`, threshold 0.8/retain 0.16) + tool-result-pruner (8192/4096/1024);
-token-meter; tier router per complessità task + self-healing; fallback cascade/circuit breaker; packed
-session history; session format v2; per-model reasoningEffort editor; `LlmCallConfig` freeze/epoch per la
-prompt-cache; budget immagini (pixel/bytes); runtime-context delta-only (emesso solo quando cambia).
+Inline micro-compaction plus a spill store with `[compaction_pointer: <id>]` dereference points; `maxToolResultChars` (32,768); summary compaction (`compaction-basic`, threshold 0.8 with 0.16 retention) plus the model-free tool-result pruner; the token-meter service with route pricing surfaces; the complexity-driven tier router plus self-healing; the fallback cascade with circuit breaker; packed session history with session format v2; the per-model reasoning-effort editor; the frozen `LlmCallConfig` with epoch for prompt-cache stability; image budgets by pixel and byte counts; runtime-context snapshots emitted only on change with dedup; canonical wire schemas; and the 32k fetch cap.
 
-## Mappa del costo di una richiesta (profilo headless, 24 tool)
+## 2. Request cost map (headless profile, 24 tools)
 
-| Componente | tok/request | Note |
+| Component | Tokens per request | Note |
 |---|---|---|
-| Identity + persona | ~40 | snello |
-| Sezioni guida per-tool (17) | ~1.050 | `system-prompt` |
-| Schemi tool (24) | ~5.720 | workflow 983, str_replace_editor 763, bash 441, todo 292, subagent 270 |
-| **Fisso totale** | **~6.800** | pago a ogni request |
-| Runtime-context snapshot | ~100 | solo on-change, dedup |
-| Skill catalog | ~120 + 125×N skill | cap 500 char/desc |
-| agent-instructions (AGENTS.md) | fino a 16.400 | budget 64 KiB, head-only |
-| Storia (tutta la surface) | crescente | mitigata da pruner/compaction |
-| PTC mode (opt-in) | SDK ~7.184 | più costoso del nativo che sostituisce a 24 tool |
-| Preset cordis (opt-in) | ~3.700 | sezione 10.2k char + 4 tool |
+| Identity plus persona | ~40 | lean |
+| Per-tool guide sections (17) | ~1,050 | `system-prompt` |
+| Tool schemas (24) | ~5,720 | workflow 983, str_replace_editor 763, bash 441, todo 292, subagent 270 |
+| **Fixed total** | **~6,800** | paid on every request |
+| Runtime-context snapshot | ~100 | on-change only, deduped |
+| Skill catalog | ~120 + ~125 per skill | 500-character description cap |
+| Agent instructions (AGENTS.md) | up to ~16,400 | 64 KiB budget, head-only |
+| History (whole surface) | growing | mitigated by pruner and compaction |
+| PTC mode (opt-in) | SDK ~7,184 | costs more than the native path it replaces at 24 tools |
+| Preset cordis (opt-in) | ~3,700 | 10.2k-character section plus 4 tools |
 
-## Insight trasversale chiave
+## 3. Key cross-cutting insight
 
-Con il context caching automatico DeepSeek (hit ≈ 1/31 del prezzo miss; finestre 1M), la gerarchia
-economica cambia: **un token in cache costa così poco che conviene proteggere la stabilità del prefisso
-e comprimere meno aggressivamente**, mentre restano costosi i token *output* (reasoning) e la massa dei
-tool result nei turni in cui sono freschi. Le due leve dominanti sono quindi: (1) hit-rate della cache,
-(2) massa tool-result — in quest'ordine. La summary compaction stessa è ora un costo (busta l'intera
-cache) da usare tardi, non presto.
+Wherever automatic context caching exists, a cached token costs a small fraction of a fresh one, so the economic order changes: **protecting prefix stability beats compressing harder**, while output tokens (reasoning) and fresh tool-result mass stay expensive. The two dominant levers are therefore (1) cache hit rate and (2) tool-result mass, in that order. Summary compaction itself is now a cost — it re-misses the whole cache — so it belongs late, not early, with model-free pruning and stable prefixes doing the early work.
 
-## P0 — Quick win (config-only, giorni, rischio minimo)
+## 4. Per-provider caching mechanics (checked) and what Fenice owes each one
 
-1. **Accendere `promptCacheStablePrefix`** (`packages/llm/llm-pi-ai/src/lab.ts:73`, flag testato ma
-   OFF; contenuti: sort tool per nome, canonicalizzazione ricorsiva delle chiavi JSON Schema, CRLF,
-   fingerprint). Evita i bust sporadici tra restart/merge config. Impatto: evita re-miss integrali
-   ($0.018/turno su flash a 40k tok); è il moltiplicatore di tutte le altre voci. Sforzo S.
-2. **Cap web fetch 200k → ~32k char con taglio head/tail** (`packages/web/tool-web/src/index.ts:34`,
-   taglio head-only in `fetch.ts:265-291` → head 70%/tail 30%). Un solo fetch grande pesa 50k tok nel
-   log per sempre (il pruner taglia solo a 8.192+). 5 fetch/sessione ≈ −200k tok di massa. Sforzo S.
-3. **Pruner tool-result per-step, fuori dalla compaction** (`compaction-basic/src/index.ts:305-312`
-   esegue `pruneSession()` solo dentro `compactIfNeeded`; è model-free e replay-safe:
-   `compaction-tool-result-pruner/src/index.ts:136-184`). Massa tool-result −57% in sessioni ricche di
-   fetch/letture; raddoppia il runway prima della summary compaction. Sforzo S.
-4. **Configurare `modelPolicies` per `compaction-basic`** (implementato, mai configurato:
-   `base/cordis.patch.yml:326-328`; nota `2026-07-20-routed-model-context-and-compaction-policy.md`):
-   riassuntore su tier economico, cap output, retry. Con finestre 1M valutare threshold ≥ 0.8 (v. insight). Sforzo S.
-5. **Off-peak scheduling per headless/jobs** — tariffa DeepSeek dimezzata in certe fasce UTC
-   (ufficiale, fonti sotto). ~50% su tutte le voci per run schedulati. Sforzo S (cron). Rischio nullo.
-6. **Skill catalog: cap 500→200 char/desc + unificare la prose ripetuta**
-   (`skill/tool-skill/src/index.ts:27,254-300`). −75 tok/request ogni 10 skill. Sforzo S.
+Every provider below rewards the same universal mechanism — a byte-stable prefix with static content first and volatile content last — but each one needs its own parameters. The harness core must stay neutral; per-provider values belong in route policy, never in shared code.
 
-## P1 — Piccolo codice, alto valore
+**DeepSeek.** Automatic context caching is best-effort on the shared prefix with usage fields reported per request; flash pricing discounts cache hits to roughly 1/31 of a miss with 1M-token windows and half-price off-peak windows. Fenice answers with canonical wire schemas, the default-ON stable prefix, late compaction, and optional off-peak scheduling kept as deployment policy rather than harness behavior.
 
-7. **Differire le famiglie tool "lontane"** (workflow, ralph, goal): schema+sezione solo on-demand
-   (pattern già esiste con `read_image`/`ToolRestriction`). ~1.9-2.1k tok/req (−30% del fisso).
-   `tool-workflow/src/index.ts:137-214`, `tool-goal/src/index.ts:112-191`. Sforzo M.
-8. **Rimuovere `str_replace_editor` dal base** (read/write/edit coprono tutto; preset compat lo
-   rimonta): −763 tok/req. `fs/tool-str-replace-editor`, `base/cordis.patch.yml:424-426`. Sforzo S.
-9. **Gate pwsh su win32**: −570 tok/req su POSIX. `shell/tool-pwsh/src/index.ts:119-120`. Sforzo S.
-10. **Canonicalizzare gli schema tool alla registrazione** (portare la canonicalizzazione del flag lab
-    nel default di `dsh-tools`): stabilità garantita su tutti i path, non solo pi-ai.
-    `system-prompt/src/index.ts:286` vs `llm-pi-ai/src/context.ts:200-214`. Sforzo S/M.
-11. **Budget wire progressivo per età del tool result** (ultimi 2 turni 32k, oltre 8k, oltre 10 turni
-    4k — solo a livello wire, log intatto): −50-75% sulla massa vecchia. `context.ts:75`. Sforzo M.
-12. **Retrieval dei compaction pointer**: estendere `session_event_read`
-    (`session-query/tool-session-query/src/index.ts:109`) per risolvere `[compaction_pointer: <id>]`
-    all'evento originale, poi enabling di default del flag (`lab.ts:96`). Rende sicuro abbassare il
-    budget wire. Sforzo M.
-13. **Deduplicare la guida sezione↔description** (subagent/jobs/goal ripetono le stesse regole):
-    −150-250 tok/req e niente istruzioni doppie divergenti. Sforzo S.
+**OpenAI.** Prompt caching is automatic by default and requires an exact repeated prefix match (1,024 tokens minimum on current models, 2,048 on older ones, counted in 128-token increments); tool definitions and their order participate in the prefix, so key or order changes invalidate it. `prompt_cache_key` improves routing stickiness toward the machine holding the KV state (about 15 requests per minute per prefix-plus-key before overflow routing spreads load), current models add explicit breakpoints (up to four writes, reads across up to 50 breakpoints) with 30-minute TTL and `in_memory` versus `24h` retention, and the Codex team documents the same discipline Fenice adopted: identical ordered stable prefixes with changes appended, never edited in place. Fenice answers with the same stable-prefix machinery plus a `prompt_cache_key`-style sticky routing affordance where the transport supports it, configured per route.
 
-## P2 — Strutturali / flag-gated (valutare caso per caso)
+**Anthropic.** Caching is explicit via `cache_control` (up to four breakpoints) or automatic via one top-level field that rides the last cacheable block forward as the conversation grows; the order is tools, then system, then messages, writes cost 1.25x base input while reads cost 0.1x, TTL is 5 minutes refreshed on hit with an optional 1-hour TTL, minimum cacheable prefixes are model-dependent (1,024 for Sonnet-class, 4,096 for Opus/Haiku-class), reads look back at most 20 blocks for a previously written entry, and thinking or effort changes invalidate the messages cache. The robust agent-loop pattern is one explicit breakpoint at the end of the static prefix plus automatic caching for the growing tail, with `max_tokens: 0` pre-warming available at startup. Fenice already models `cacheRetention` (`none`, `short`, `long`) and marks `cache_control` support on `anthropic-messages` tool definitions (`packages/llm/llm-pi-ai/src/catalog.ts`); the missing piece is strategic breakpoint placement (end of system, end of tools, last stable point) per route instead of relying on the moving tail marker, which lands on varying content and pays write premiums that are never read back.
 
-14. **Tombstone per risultati superati** (stile Anthropic context editing: rilettura stesso file,
-    comando rieseguito → tombstone di 1 riga + puntatore): −1.3k tok per risultato vs prune attuale.
-    Rischio: euristica di "superseded" da tenere conservativa. Sforzo M.
-15. **Drop del `reasoning_content` storico sui turni non-tool-call** dopo K turni
-    (`llm-deepseek/src/serialize.ts:225-234` rispedisce tutto per protocollo): −30-100k tok/request su
-    sessioni reasoner lunghe. Rischio medio-alto (protocol API, 400 senza passback sui turni tool —
-    solo flag-gated e testato per gateway). Sforzo M/L.
-16. **Dedup byte-level dei risultati identici consecutivi**: −10-20% della massa tool-result nel
-    coding. Sforzo M.
-17. **GC dello spill store** (`spill.ts:139-146` oggi senza eviction). Igiene, S.
-18. **PTC SDK prompt slimming**: istruzioni fisse ~1.5-2k tok + output-map di TUTTI i tool; a 24 tool
-    la PTC costa più del nativo. Emettere l'output-map solo per i tool sub-dispatchati.
-    `core/tools/src/ts-types.ts:297-315`. Sforzo M.
-19. **`semanticMemory`** (flag dichiarato "(coming soon)" in `lab.ts:38`) su embeddings + session-query:
-    recupero cross-session senza ricaricare history. Progetto L.
-20. **Montare il tool `session-query` + `openAt: first-search`** (`base/cordis.patch.yml:129-133`,
-    oggi opt-in spento): l'agente interroga le sessioni passate invece di ricaricare contesto. S/M.
+**Google Gemini.** Implicit caching is automatic on Gemini 2.5 and newer with nothing to configure (minimum 2,048 tokens on 2.5, 4,096 on 3.x, up to 90% discount on cached tokens, no storage charge), while explicit `CachedContent` buys guaranteed placement with TTL storage cost for large stable corpora referenced repeatedly. Fenice answers with the universal stable prefix; explicit caches are a deployment choice for huge stable contexts, not harness behavior.
 
-## Cosa NON fare (peggiorerebbe le prestazioni)
+**Bedrock and other OpenAI-compatible routes.** Prefix caching exists in vendor-specific form behind each gateway, so the universal stable prefix plus per-route effort and policy configuration is the whole story; no Fenice core code may assume any one vendor's pricing or TTL.
 
-- **Non abbassare ciecamente `reasoningEffort`** di default: i reasoning token dominano il costo con i
-  tool loop, ma `max`→`low` degrada i task complessi. Default `high`, `low` solo per superfici non-code,
-  `max` opt-in (nessun benchmark nel repo: procedere con misurazioni via token-meter).
-- **Non anticipare la summary compaction**: con hit a 1/31 e finestre 1M, compattare presto costa più
-  del contesto extra (ogni compaction ri-missa integralmente la storia). Meglio pruner model-free +
-  prefissi stabili, compaction tarda.
-- **Non introdurre paginazione model-facing** (`head_limit`/`offset` nei tool schema): rifiutata per
-  decisione documentata (`2026-07-06-tool-result-retention-library.md:141,157`), i budget da config +
-  spill coprono.
-- **Non rompere il passback `reasoning_content`** sui turni tool (l'API risponde 400).
+## 5. Problems still open in this tree
 
-## Stima aggregata (scenario: sessione agent 20 turni, contesto medio 40k)
+**P1 — small code, high value.** Defer distant tool families (workflow, ralph, goal: schema plus guide section on demand through the existing restriction pattern) to remove ~1.9–2.1k fixed tokens per request (~30% of the fixed cost). Drop `str_replace_editor` from the base composition (read, write, and edit cover it; the compat preset remounts it) to remove ~763 tokens per request. Gate the pwsh tool family on win32 to remove ~570 tokens per request on POSIX. Cap skill-catalog descriptions at 200 characters instead of 500 (`packages/skill/tool-skill/src/index.ts`) and unify the repeated prose, saving ~75 tokens per request per 10 skills. Dedup the section-versus-description guidance repeated across subagent, jobs, and goal (~150–250 tokens per request plus divergence risk). Extend `session_event_read` to resolve `[compaction_pointer: <id>]` to the original event so the wire budget can be lowered safely. Slim the PTC SDK prompt by emitting the output map only for sub-dispatched tools instead of all of them.
 
-- Senza cache: ~800k input tok → flash peak ≈ $0.35. Con prefisso stabile ~90% hit ≈ $0.045 (7.8×).
-- P0+P1 (masse tool-result e fisso): −30-50% dei token effettivi per request nelle sessioni ricche di
-  fetch/letture, −20-30% del fisso nei profili con famiglie differite.
-- Off-peak: −50% su tutte le voci per i run schedulati.
+**P1 — configuration that already exists but is never turned on.** Configure `modelPolicies` for `compaction-basic` (implemented in `packages/compaction/compaction-basic/src/config.ts`, referenced nowhere in `packages/bundle/`): an economy-tier summarizer with output caps and retries, with the 0.8 threshold revisited against 1M windows. Mount the `session-query` tool with content search for deployments that want agents to interrogate past sessions instead of reloading context (`openAt: never` is the current default in `packages/bundle/base/cordis.patch.yml`).
 
-## Fonti esterne (verificate settembre 2026)
+**P2 — structural, flag-gated, one at a time.** Age-graded wire budgets (recent results full, older results cut harder, wire level only with the log intact). Tombstones for superseded results in the Anthropic context-editing style (reread file or rerun command collapses to one line plus a pointer, with a conservative superseded heuristic). Byte-level dedup of consecutive identical results. Dropping historical `reasoning_content` on non-tool-call turns after K turns (medium-high risk: the protocol answers 400 without passback on tool turns, so flag-gated and gateway-tested only). Spill-store eviction (no TTL or LRU exists today). `semanticMemory` over embeddings plus session-query for cross-session recall without reloading history (large project). Strategic per-provider cache-breakpoint placement, starting with Anthropic explicit markers. Unified cache telemetry (hit rate plus prefix fingerprint) surfaced through token-meter and session-query so efficiency is measurable on every route. Efficiency metrics per snapshot scenario (tokens per turn, tool-result mass, estimated hit rate) next to the expected outputs, turning every optimization PR into a measured non-regression proof on each provider in the corpus. Per-route reasoning-effort defaults in config (policy, never core): `high` default, `low` for non-code surfaces, `max` opt-in, measured through token-meter rather than assumed.
 
-- Pricing DeepSeek (flash: hit $0.014 / miss $0.44 /1M peak; pro: hit $0.044 / miss $1.32; off-peak −50%):
-  https://api-docs.deepseek.com/quick_start/pricing/
-- Context caching automatico (best-effort, prefisso, usage fields): https://api-docs.deepseek.com/guides/kv_cache/
-- Thinking mode (reasoning_effort low|high|max, default high; temperature ignorata in thinking):
-  https://api-docs.deepseek.com/guides/thinking_mode/
-- Context editing (Anthropic, tecnica di riferimento per i tombstone):
-  https://platform.claude.com/docs/en/build-with-claude/context-editing
-- Effective context engineering (Anthropic engineering):
-  https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+## 6. Algorithms in use and proposed
 
----
+Canonicalization rebuilds each parameters object with recursively sorted keys at wire-serialization time (`canonicalizeJsonValue`), so structural equality implies byte equality without touching the durable log. Prefix fingerprinting hashes the stable prefix per request and exposes it in telemetry, turning invisible invalidations into a visible diff signal. Tier routing scores task complexity (informational, standard, code, multi-step tools, deep reasoning) into fast, standard, and reasoning tiers (`packages/llm/llm-pi-ai/src/tier-router.ts`) so the cheapest capable route serves each request. Tombstoning replaces a superseded result with a one-line marker plus a dereferenceable pointer once a conservative same-target heuristic fires. Dedup hashes consecutive result bytes and collapses repeats. Age grading applies progressively smaller wire budgets by result age while the log keeps everything. The model-free pruner scans per step with zero new events and spares the freshest result while stepping. The spill store pages oversized content out of the message with pointer markers and still needs bounded eviction. Pointer retrieval resolves a marker back to its source event on demand. Semantic recall embeds history and retrieves by similarity instead of reloading it. Metering projects request and surface tokens through replay-aware folds so every claim above is measurable in the gate rather than asserted in prose.
 
-# Addendum — Allineamento alla visione multi-provider
+## 7. What NOT to do (worse than doing nothing)
 
-Fenice non è un harness DeepSeek: è un harness per **tutti gli LLM**, con massime prestazioni e
-risparmio token *a parità di prestazioni*. Ogni proposta dello studio è stata riclassificata con il
-**test di neutralità**: (a) il risparmio è nel *payload* → valido identico su qualunque provider;
-(b) il *meccanismo* è universale ma i *parametri* sono policy per-provider; (c) è provider-specific
-→ non fa parte del core.
+Do not lower `reasoningEffort` blindly by default: reasoning tokens dominate cost in tool loops, but stepping down degrades complex tasks with no benchmark in the repo to justify it — measure per surface through token-meter first. Do not compact early: with deep cache discounts and 1M windows, early summary compaction costs more than the extra context because every compaction re-misses the whole history — prune model-free with stable prefixes and compact late. Do not add model-facing pagination (`head_limit` or `offset` in tool schemas): rejected by recorded decision, with config budgets plus spill covering the need. Do not break `reasoning_content` passback on tool turns: the API answers 400. Do not chase a shorter prompt below a provider's minimum cacheable length: a slightly longer stable prefix that caches beats a shorter one that never does.
 
-## (a) Neutre per costruzione — il cuore del roadmap
+## 8. Aggregate estimate (20-turn agent session, 40k average context)
 
-Fetch cap 32k, pruner per-step, budget wire per età, tombstone, dedup risultati, differimento tool
-lontane, rimozione `str_replace_editor`, gate pwsh, dedup guida, skill catalog cap, PTC slimming,
-spill GC, session-query, semanticMemory, budget agent-instructions. Riducono i token *del messaggio*,
-che qualunque provider fattura; nessuna dipende da pricing o meccaniche DeepSeek.
+Without cache: ~800k input tokens. With a ~90% stable-prefix hit rate: roughly an 8x cost reduction on the cached portion. P0 plus P1 mass and fixed-cost work removes ~30–50% of effective per-request tokens in fetch- and read-heavy sessions and ~20–30% of the fixed cost in profiles with deferred families. Scheduled off-peak runs halve DeepSeek-billed totals where the tariff applies. These are planning estimates from the verified cost map, not measurements of any specific deployment.
 
-## (b) Meccanismo universale, parametri per-provider
+## 9. Sources (checked September 2026)
 
-- **Stabilità del prefisso** resta la leva #1 per TUTTI: DeepSeek (automatica), OpenAI (automatica),
-  Google (implicita+esplicita), Bedrock — tutte hanno prefix caching; Anthropic la vuole *esplicita*.
-  Il lavoro universale è: (1) prefisso byte-stabile (canonicalizzazione schema alla registrazione,
-  non solo dietro flag lab), (2) emettere i **marker dove il provider li chiede** — pi-ai ha già
-  `cacheRetention`/`cache_control` ma manca il posizionamento strategico dei breakpoint
-  (fine system / fine tools / ultimo punto stabile).
-- **Telemetria cache unificata**: il mapping degli usage fields esiste già per provider
-  (`llm-deepseek/src/translate.ts:48-66` → `cacheReadTokens`); serve esporre l'**hit-rate e il
-  fingerprint del prefisso in token-meter/session-query** così l'efficienza è misurabile su ogni
-  route, non solo DeepSeek.
-- **`modelPolicies` + tier router** = routing multi-provider: riassuntore economico e mapping
-  complessità→route su QUALSIASI mix di provider, non solo deepseek/alibaba. È il pezzo che
-  realizza "massime prestazioni a minor costo" indipendentemente dal vendor.
-- **Effort/reasoning per-modello**: il modello dati è già neutro (`LlmModelReasoningInfo`,
-  `thinkingLevelMap` per wire spelling per modello — v. editor appena fatto). La *policy*
-  (default `high`, `max` opt-in, `low` per superfici non-code) va espressa come default per-route
-  nel config, mai nel core.
-
-## (c) Provider-specific — fuori dal core
-
-Off-peak scheduling e le stime in dollari dello studio sono DeepSeek-only: restano valide come
-*illustrazione* e come eventuale policy plugin di costo (cost calendar), non come comportamento
-dell'harness.
-
-## Il meccanismo che garantisce "a parità di prestazioni"
-
-Il corpus snapshot keyless già replaya sessioni complete con output attesi. L'aggiunta decisiva:
-**metriche di efficienza per scenario** (tok/turno, massa tool-result, hit-rate stimata dal token-meter)
-affiancate agli output attesi — così ogni PR di ottimizzazione dimostra nel gate stesso il risparmio e
-l'assenza di regressioni, su ogni provider registrato nel corpus. È ciò che trasforma il risparmio da
-promessa a proprietà verificata.
-
-## Priorità rivista (visione multi-provider)
-
-1. Canonicalizzazione schema alla registrazione (universale) — era P1, ora P0.
-2. `promptCacheStablePrefix` ON + posizionamento cache markers per provider (Anthropic esplicito).
-3. Fetch cap, pruner per-step, budget per età, tombstone (payload-neutral, invariati).
-4. `modelPolicies` + tier router come routing multi-provider documentato e configurato nei bundle.
-5. Metriche di efficienza nel corpus snapshot come gate di non-regressione.
-6. Effort/reasoning default per-route via settings (policy, non core).
-7. Off-peak/cost calendar come plugin opzionale provider-specific.
+- DeepSeek pricing (flash hit versus miss, off-peak discount): https://api-docs.deepseek.com/quick_start/pricing/
+- DeepSeek automatic context caching (best-effort prefix, usage fields): https://api-docs.deepseek.com/guides/kv_cache/
+- DeepSeek thinking mode (reasoning_effort low, high, max; high default): https://api-docs.deepseek.com/guides/thinking_mode/
+- OpenAI prompt caching guide (automatic and explicit breakpoints, TTL, retention, routing keys): https://developers.openai.com/api/docs/guides/prompt-caching
+- OpenAI Prompt Caching 201 (prefix discipline, Codex loop lessons, cache keys, Flex processing): https://developers.openai.com/cookbook/examples/prompt_caching_201
+- Anthropic prompt caching (automatic versus explicit breakpoints, TTL, lookback, pre-warming): https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+- Anthropic prompt-caching patterns (prefix-match invalidation, placement, diagnosis): https://github.com/anthropics/skills/blob/main/skills/claude-api/shared/prompt-caching.md
+- Google Gemini context caching (implicit versus explicit, minima, discounts): https://ai.google.dev/gemini-api/docs/generate-content/caching
+- Anthropic context editing (reference technique for tombstones): https://platform.claude.com/docs/en/build-with-claude/context-editing
+- Anthropic effective context engineering for agents: https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
