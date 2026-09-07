@@ -110,6 +110,27 @@ export class ReactLoopAgent implements Agent {
     return false
   }
 
+  /**
+   * Whether the selected route offers reasoning levels, gating tierRouter elevation.
+   *
+   * Elevation runs on the pre-waterfall route; the `agent/request` waterfall may
+   * still retarget the provider/model before dispatch.
+   * @param provider - provider route named by the pre-waterfall seed config.
+   * @param model - model id named by the pre-waterfall seed config.
+   * @param signal - caller cancellation for the adapter-owned capability lookup.
+   * @returns true only when the owning adapter reports reasoning levels.
+   */
+  private async supportsReasoningEffort(provider: string, model: string, signal: AbortSignal): Promise<boolean> {
+    if (provider.length === 0 || model.length === 0) return false
+    try {
+      const info = await this.loopCtx.llm.resolveModelInfo(provider, model, signal)
+      return info.reasoning !== undefined
+    } catch {
+      signal.throwIfAborted()
+      return false
+    }
+  }
+
   private maxSelfHealingRetries(): number {
     return this.options.maxSelfHealingRetries
       ?? this.loopCtx.agentLoop.config.maxSelfHealingRetries
@@ -536,6 +557,15 @@ export class ReactLoopAgent implements Agent {
   /**
    * Compose one frozen request and bind it to the adapter registration that
    * resolved its exact-model defaults.
+   * @param turn - one-based turn claiming this step.
+   * @param step - one-based step within the turn.
+   * @param tools - visible tool schemas for this request.
+   * @param system - rendered system prompt text.
+   * @param boundaryMessages - session-derived messages for the provider.
+   * @param startsRequestSeries - whether this step opens a fresh message series.
+   * @param surfaceGeneration - prompt-surface revision selecting the header baseline.
+   * @param signal - caller cancellation for capability lookups and dispatch.
+   * @returns the frozen provider request with its registration-bound call, when resolved.
    */
   private async buildRequest(
     turn: number,
@@ -572,9 +602,13 @@ export class ReactLoopAgent implements Agent {
         },
     ))
     // Agent-Lab tierRouter: evaluate task complexity heuristics to dynamically route or recommend appropriate model tiers.
+    // Elevation fills an unset seed only, after confirming the pre-waterfall
+    // route reports reasoning levels; otherwise the effort stays unset so the
+    // adapter omits it and the provider default applies.
     if (this.isTierRouterEnabled()) {
       const report = evaluateTaskComplexity(boundaryMessages, tools)
-      if (report.tier === 'reasoning' && seedConfig.reasoningEffort === undefined) {
+      if (report.tier === 'reasoning' && seedConfig.reasoningEffort === undefined
+        && await this.supportsReasoningEffort(seedConfig.provider, seedConfig.model, signal)) {
         seedConfig = deepFreeze({ ...seedConfig, reasoningEffort: ReasoningEffortId('high') })
       }
     }

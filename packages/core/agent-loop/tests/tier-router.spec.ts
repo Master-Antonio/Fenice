@@ -104,6 +104,64 @@ describe('ReactLoopAgent tierRouter dynamic reasoning routing', () => {
     expect(adapter.requests[0]!.reasoningEffort).toEqual(ReasoningEffortId('high'))
   })
 
+  it('skips elevation when the selected model reports no reasoning levels', async () => {
+    const adapter = new MockAdapter([
+      textResponse('Here is the refactored code'),
+    ])
+    const ctx = await harness(adapter)
+
+    const agent = await ctx.agentLoop.create(SessionId('a-tier-no-reasoning'), {
+      provider: 'mock',
+      model: 'mock',
+      flags: { tierRouter: true },
+    })
+
+    agent.followup(createUserMessage({
+      content: [{
+        type: 'text',
+        text: 'Implement a binary search tree in TypeScript with full type definitions and deleteNode method:\n```ts\nclass BST {}\n```',
+      }],
+      source: { kind: 'user' },
+    }))
+
+    await waitForIdle(ctx, agent)
+
+    expect(adapter.requests).toHaveLength(1)
+    expect(adapter.requests[0]!.reasoningEffort).toBeUndefined()
+  })
+
+  it('keeps an explicit seed effort over tierRouter elevation', async () => {
+    const adapter = new MockAdapter([
+      textResponse('Here is the refactored code'),
+    ], {
+      efforts: [
+        { id: ReasoningEffortId('low'), name: 'Low' },
+        { id: ReasoningEffortId('high'), name: 'High' },
+      ],
+    })
+    const ctx = await harness(adapter)
+
+    const agent = await ctx.agentLoop.create(SessionId('a-tier-explicit'), {
+      provider: 'mock',
+      model: 'mock',
+      reasoningEffort: ReasoningEffortId('low'),
+      flags: { tierRouter: true },
+    })
+
+    agent.followup(createUserMessage({
+      content: [{
+        type: 'text',
+        text: 'Implement a binary search tree in TypeScript with full type definitions and deleteNode method:\n```ts\nclass BST {}\n```',
+      }],
+      source: { kind: 'user' },
+    }))
+
+    await waitForIdle(ctx, agent)
+
+    expect(adapter.requests).toHaveLength(1)
+    expect(adapter.requests[0]!.reasoningEffort).toEqual(ReasoningEffortId('low'))
+  })
+
   it('keeps baseline reasoning effort when tierRouter is disabled', async () => {
     const adapter = new MockAdapter([
       textResponse('Code written'),
