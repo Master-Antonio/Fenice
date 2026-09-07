@@ -21,7 +21,7 @@ import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/
 import { deriveKeyRef, ModelsSettingsStore } from '../src/client/store.ts'
 import { createModelsOperations } from '../src/client/operations.ts'
 import type { ModelsOperations } from '../src/client/operations.ts'
-import type { ModelDiscoveryOutcome } from '../src/client/operations.ts'
+import type { ModelDiscoveryOutcome, SettingsWriteOutcome } from '../src/client/operations.ts'
 import { ModelListEditor } from '../src/client/ModelListEditor.tsx'
 import type { ModelDraft } from '../src/client/ModelListEditor.tsx'
 import { useState } from 'react'
@@ -1547,7 +1547,7 @@ describe('ModelListEditor hand-added reasoning levels', () => {
       describeCredential: vi.fn(() => Promise.resolve(undefined)),
       storeCredential: vi.fn(() => Promise.resolve(undefined)),
       removeCredential: vi.fn(() => Promise.resolve(undefined)),
-      writeSettings: vi.fn(async () => ({ kind: 'refused', message: 'no' })),
+      writeSettings: vi.fn(async (): Promise<SettingsWriteOutcome> => ({ kind: 'refused', message: 'no' })),
       discoverModels: vi.fn(async (): Promise<ModelDiscoveryOutcome> => ({ kind: 'refused', message: 'no' })),
     }
   }
