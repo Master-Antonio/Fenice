@@ -142,6 +142,11 @@ function TurnErrorItem({ node, onFork, t }: {
         <div className={css.turnErrorCopy}>
           <span className={css.turnErrorTitle}>{t('message.turnError')}</span>
           <span className={css.turnErrorMessage}>{failureMessage(node.message, node.code, t)}</span>
+          {/* A refused reasoning effort names its own fix: the provider's
+              raw message carries the model id but says nothing actionable. */}
+          {node.code !== 'UNSUPPORTED_REASONING_EFFORT' ? null : (
+            <span className={css.turnErrorMessage}>{t('message.reasoningEffort.hint')}</span>
+          )}
         </div>
         {node.code !== undefined && <code className={css.turnErrorCode}>{node.code}</code>}
       </div>

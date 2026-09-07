@@ -25,6 +25,8 @@
 import { INVALID_CREDENTIAL_CODE, LlmError, normalizeApiKey } from '@deepseek-ai/dsh-llm'
 import type { LlmDiscoveredModel, LlmModelDiscoveryOperation } from '@deepseek-ai/dsh-llm'
 import { attributionHeaders } from '@deepseek-ai/dsh-llm'
+import { getSupportedThinkingLevels } from '@earendil-works/pi-ai'
+import type { Api, Model } from '@earendil-works/pi-ai'
 import { catalogModels } from './catalog.ts'
 
 /**
@@ -47,6 +49,27 @@ const ANTHROPIC_VERSION = '2023-06-01'
 
 /** Largest model-list page accepted by Anthropic's public endpoint; discovery reads one page and does not follow `has_more`. */
 const ANTHROPIC_MODEL_LIMIT = 1000
+
+/**
+ * Reasoning-effort offer for one installed catalog model, in the stored
+ * `reasoningEfforts` dict shape the settings surface adopts verbatim.
+ * Levels come from the vendor's supported list with their dispatch spellings;
+ * `off` always spells nothing. A model the vendor reports no levels for
+ * offers nothing, so unknown gateways keep hand-entry instead of a guess.
+ * @param model - installed catalog model entry.
+ * @returns the offer dict, or undefined when the model reports no levels.
+ */
+function reasoningOffer(model: Model<Api>): Record<string, string | null> | undefined {
+  const levels = getSupportedThinkingLevels(model)
+  if (levels.length === 0) return undefined
+  const offer: Record<string, string | null> = { off: null }
+  for (const level of levels) {
+    if (level === 'off') continue
+    const spell = model.thinkingLevelMap?.[level]
+    offer[level] = typeof spell === 'string' ? spell : level
+  }
+  return offer
+}
 
 /**
  * Endpoint replies larger than this are refused. The endpoint is whatever URL
@@ -275,12 +298,16 @@ export async function discoverModels(
   if (request.provider !== undefined) {
     const installed = catalogModels(request.provider)
     if (installed.size > 0) {
-      return [...installed.values()].map(model => ({
-        id: model.id,
-        name: model.name,
-        contextWindow: model.contextWindow,
-        maxTokens: model.maxTokens,
-      }))
+      return [...installed.values()].map((model) => {
+        const efforts = reasoningOffer(model)
+        return {
+          id: model.id,
+          name: model.name,
+          contextWindow: model.contextWindow,
+          maxTokens: model.maxTokens,
+          ...efforts === undefined ? {} : { reasoningEfforts: efforts },
+        }
+      })
     }
   }
   if (request.baseURL === undefined || request.baseURL.length === 0) {

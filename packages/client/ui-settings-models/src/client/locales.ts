@@ -114,6 +114,9 @@ export const en = {
   reasoningCustom: 'Custom levels',
   reasoningSend: 'Value to send',
   reasoningOffPlaceholder: 'Empty sends nothing',
+  reasoningAddLevel: 'Add level',
+  reasoningLevelName: 'Level name',
+  reasoningLevelWire: 'Wire value (empty sends the name)',
   modelReasoningNoLevels: 'Offer at least one level beyond off, or disable reasoning.',
   modelReasoningLevelMissing: 'Each level beyond off needs the value to send.',
 }
@@ -235,6 +238,9 @@ export const zh: { [Key in keyof typeof en]: string } = {
   reasoningCustom: '自定义等级',
   reasoningSend: '发送的值',
   reasoningOffPlaceholder: '留空则不发送',
+  reasoningAddLevel: '添加等级',
+  reasoningLevelName: '等级名称',
+  reasoningLevelWire: '发送值（留空则发送名称）',
   modelReasoningNoLevels: '至少提供一个 off 以外的等级，或禁用推理。',
   modelReasoningLevelMissing: 'off 以外的每个等级都需要填写发送的值。',
 }

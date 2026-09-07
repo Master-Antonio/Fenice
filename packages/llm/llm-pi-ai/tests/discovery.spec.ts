@@ -88,6 +88,17 @@ describe('catalog-route model discovery', () => {
     expect(server.paths).toEqual([])
   })
 
+  it('carries the catalog reasoning vocabulary for models that think', async () => {
+    const ctx = await harness()
+    const models = await ctx.llm.discoverModels('llm-pi-ai', { provider: 'deepseek' })
+    const offers = new Map(models.map(model => [model.id, model.reasoningEfforts]))
+    // A reasoning catalog model offers off plus its levels spelled for dispatch.
+    const flash = offers.get('deepseek-v4-flash')
+    expect(flash).toMatchObject({ off: null })
+    expect(Object.keys(flash ?? {}).length).toBeGreaterThan(1)
+    expect(Object.values(flash ?? {}).every(wire => wire === null || (typeof wire === 'string' && wire.length > 0))).toBe(true)
+  })
+
   it('needs no endpoint for a route the catalog describes', async () => {
     const ctx = await harness()
     await expect(ctx.llm.discoverModels('llm-pi-ai', { provider: 'deepseek' })).resolves.not.toHaveLength(0)

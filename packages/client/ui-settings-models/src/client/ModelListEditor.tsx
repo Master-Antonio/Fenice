@@ -161,6 +161,9 @@ function adopt(candidate: LlmDiscoveredModel): ModelDraft {
     ...candidate.name === undefined ? {} : { name: candidate.name },
     ...candidate.contextWindow === undefined ? {} : { contextWindow: candidate.contextWindow },
     ...candidate.maxTokens === undefined ? {} : { maxTokens: candidate.maxTokens },
+    // A catalog-known reasoning vocabulary rides along; endpoint listings
+    // disclose no efforts, so those rows keep hand-entry (or the manual add).
+    ...candidate.reasoningEfforts === undefined ? {} : { reasoningEfforts: { ...candidate.reasoningEfforts } },
   }
 }
 
@@ -186,6 +189,9 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   // FIELD: a single buffer would be displaced by editing any other field, and
   // the abandoned one would render its stored NaN as the literal `NaN`.
   const [editing, setEditing] = useState<ReadonlyMap<string, string>>(new Map())
+  // Half-typed hand-added reasoning levels, one draft per row: a gateway
+  // that discloses no vocabulary still needs a way to name a level.
+  const [customLevel, setCustomLevel] = useState<ReadonlyMap<number, { name: string; wire: string }>>(new Map())
 
   /** Buffer key for one capacity field; the row half moves when rows do. */
   const bufferKey = (index: number, field: CapacityField): string => `${String(index)}:${field}`
@@ -294,6 +300,47 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
     if (text === '' && level !== 'off') Reflect.deleteProperty(next, level)
     else next[level] = text === '' ? null : text
     patch(index, { reasoningEfforts: next })
+  }
+
+  /** One row's half-typed level draft, or blank when the row has none. */
+  const customDraft = (index: number): { name: string; wire: string } =>
+    customLevel.get(index) ?? { name: '', wire: '' }
+
+  /**
+   * The levels one custom row shows: the schema's own, then any hand-added
+   * offer, so a level added by hand stays visible until withdrawn here.
+   */
+  const offeredLevels = (model: ModelDraft): string[] => {
+    /* v8 ignore next -- offeredLevels only runs in the custom branch, which renders solely for a non-empty schema */
+    const schema = props.reasoningLevels ?? []
+    return [...schema, ...Object.keys(reasoningDict(model)).filter(level => !schema.includes(level))]
+  }
+
+  const editCustomLevel = (index: number, field: 'name' | 'wire', text: string): void => {
+    setCustomLevel(current => new Map(current).set(index, { ...customDraft(index), [field]: text }))
+  }
+
+  /**
+   * Offer one hand-named level. A blank wire spells the name itself — `off`
+   * spells nothing — mirroring what a newly offered schema level stores.
+   * A blank or already-offered name is not a level and changes nothing.
+   */
+  const addReasoningLevel = (index: number, model: ModelDraft): void => {
+    const name = customDraft(index).name.trim()
+    /* v8 ignore next -- the add button is disabled for a blank or already-offered name, so the handler only ever sees a fresh one */
+    if (name === '' || name in reasoningDict(model)) return
+    const wire = customDraft(index).wire
+    patch(index, {
+      reasoningEfforts: {
+        ...reasoningDict(model),
+        [name]: wire === '' ? (name === 'off' ? null : name) : wire,
+      },
+    })
+    setCustomLevel((current) => {
+      const next = new Map(current)
+      next.delete(index)
+      return next
+    })
   }
 
   const fetchModels = async (): Promise<void> => {
@@ -469,6 +516,16 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                   return next
                 })
                 setEditing(current => reindexOnRemove(current, index))
+                // The level drafts are keyed by position too, so they shift
+                // with their row rather than landing on the neighbour.
+                setCustomLevel((current) => {
+                  const next = new Map<number, { name: string; wire: string }>()
+                  for (const [at, draft] of current) {
+                    if (at === index) continue
+                    next.set(at > index ? at - 1 : at, draft)
+                  }
+                  return next
+                })
               }}
             >
               <IconTrash />
@@ -519,7 +576,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                         <option value="custom">{t('reasoningCustom')}</option>
                       </select>
                     </label>
-                    {reasoningModeOf(model) !== 'custom' ? null : props.reasoningLevels.map(level => (
+                    {reasoningModeOf(model) !== 'custom' ? null : offeredLevels(model).map(level => (
                       <div className={styles['reasoningRow']} key={level}>
                         <label className={styles['reasoningLevel']}>
                           <input
@@ -543,6 +600,37 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                         />
                       </div>
                     ))}
+                    {reasoningModeOf(model) !== 'custom' ? null : (
+                      <div className={styles['reasoningRow']}>
+                        <input
+                          className={styles['input']}
+                          type="text"
+                          value={customDraft(index).name}
+                          placeholder={t('reasoningLevelName')}
+                          aria-label={`${t('reasoningLevelName')} ${index + 1}`}
+                          disabled={disabled}
+                          onChange={(event) => { editCustomLevel(index, 'name', event.target.value) }}
+                        />
+                        <input
+                          className={styles['input']}
+                          type="text"
+                          value={customDraft(index).wire}
+                          placeholder={t('reasoningLevelWire')}
+                          aria-label={`${t('reasoningLevelWire')} ${index + 1}`}
+                          disabled={disabled}
+                          onChange={(event) => { editCustomLevel(index, 'wire', event.target.value) }}
+                        />
+                        <button
+                          type="button"
+                          className={styles['addModelButton']}
+                          disabled={disabled || customDraft(index).name.trim() === ''
+                            || customDraft(index).name.trim() in reasoningDict(model)}
+                          onClick={() => { addReasoningLevel(index, model) }}
+                        >
+                          {t('reasoningAddLevel')}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

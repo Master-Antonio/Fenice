@@ -293,6 +293,13 @@ export interface LlmDiscoveredModel {
   contextWindow?: number
   /** Maximum output tokens, when disclosed. */
   maxTokens?: number
+  /**
+   * Reasoning-effort offer when the discoverer knows the model's thinking
+   * vocabulary (installed catalog entries); absent when the endpoint
+   * discloses nothing about reasoning. Maps level to wire spelling, with
+   * `off` spelling nothing (null).
+   */
+  reasoningEfforts?: Record<string, string | null>
 }
 
 /** One adapter-discovered model; catalog membership is advisory, not request validation. */

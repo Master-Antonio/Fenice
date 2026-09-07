@@ -21,6 +21,10 @@ import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/
 import { deriveKeyRef, ModelsSettingsStore } from '../src/client/store.ts'
 import { createModelsOperations } from '../src/client/operations.ts'
 import type { ModelsOperations } from '../src/client/operations.ts'
+import type { ModelDiscoveryOutcome } from '../src/client/operations.ts'
+import { ModelListEditor } from '../src/client/ModelListEditor.tsx'
+import type { ModelDraft } from '../src/client/ModelListEditor.tsx'
+import { useState } from 'react'
 import type { ProviderRow } from '../src/client/store.ts'
 import { en } from '../src/client/locales.ts'
 import { settingsSchema } from './settings-schema.client.ts'
@@ -1534,5 +1538,154 @@ describe('apiKeyFailure', () => {
     // heuristic leaves them alone rather than guessing at a paste error.
     expect(apiKeyFailure('"')).toBeUndefined()
     expect(apiKeyFailure('"a')).toBeUndefined()
+  })
+})
+
+describe('ModelListEditor hand-added reasoning levels', () => {
+  function stubListOperations(): ModelsOperations {
+    return {
+      describeCredential: vi.fn(() => Promise.resolve(undefined)),
+      storeCredential: vi.fn(() => Promise.resolve(undefined)),
+      removeCredential: vi.fn(() => Promise.resolve(undefined)),
+      writeSettings: vi.fn(async () => ({ kind: 'refused', message: 'no' })),
+      discoverModels: vi.fn(async (): Promise<ModelDiscoveryOutcome> => ({ kind: 'refused', message: 'no' })),
+    }
+  }
+
+  function ListHarness({ initial }: { initial: ModelDraft[] }) {
+    const [rows, setRows] = useState<ModelDraft[]>(initial)
+    return (
+      <ModelListEditor
+        models={rows}
+        onChange={setRows}
+        probe={{ settingsNs: 'llm-pi-ai', provider: 'tokenrouter' }}
+        reasoningLevels={['off', 'low', 'high']}
+        operations={stubListOperations()}
+        t={t}
+        disabled={false}
+      />
+    )
+  }
+
+  function nameInput(row: number): HTMLInputElement {
+    return screen.getByLabelText<HTMLInputElement>(`${en.reasoningLevelName} ${String(row)}`)
+  }
+
+  function wireInput(row: number): HTMLInputElement {
+    return screen.getByLabelText<HTMLInputElement>(`${en.reasoningLevelWire} ${String(row)}`)
+  }
+
+  function addButton(): HTMLButtonElement {
+    return screen.getByRole<HTMLButtonElement>('button', { name: en.reasoningAddLevel })
+  }
+
+  it('offers a hand-named level with its wire spelling and clears the draft', () => {
+    render(<ListHarness initial={[{ id: 'm', reasoningEfforts: { off: null } }]} />)
+    expandRow(1)
+    fireEvent.change(nameInput(1), { target: { value: 'ultra' } })
+    fireEvent.change(wireInput(1), { target: { value: 'u2' } })
+    fireEvent.click(addButton())
+    expect(screen.getByLabelText<HTMLInputElement>(`${en.reasoningSend} ultra 1`).value).toBe('u2')
+    expect(nameInput(1).value).toBe('')
+    expect(wireInput(1).value).toBe('')
+  })
+
+  it('spells a blank wire as the name, and a blank off as nothing', () => {
+    render(<ListHarness initial={[{ id: 'm', reasoningEfforts: { low: 'low' } }]} />)
+    expandRow(1)
+    fireEvent.change(nameInput(1), { target: { value: 'ultra' } })
+    fireEvent.click(addButton())
+    expect(screen.getByLabelText<HTMLInputElement>(`${en.reasoningSend} ultra 1`).value).toBe('ultra')
+    fireEvent.change(nameInput(1), { target: { value: 'off' } })
+    fireEvent.click(addButton())
+    expect(screen.getByLabelText<HTMLInputElement>(`${en.reasoningSend} off 1`).value).toBe('')
+  })
+
+  it('offers and withdraws schema levels through their checkboxes', () => {
+    render(<ListHarness initial={[{ id: 'm', reasoningEfforts: { off: null } }]} />)
+    expandRow(1)
+    // low starts unoffered; checking it offers the level spelled as itself.
+    fireEvent.click(screen.getByLabelText('low'))
+    expect(screen.getByLabelText<HTMLInputElement>(`${en.reasoningSend} low 1`).value).toBe('low')
+    // off withdrawn and re-offered spells nothing to send.
+    fireEvent.click(screen.getByLabelText('off'))
+    expect(screen.getByLabelText<HTMLInputElement>('off').checked).toBe(false)
+    fireEvent.click(screen.getByLabelText('off'))
+    expect(screen.getByLabelText<HTMLInputElement>('off').checked).toBe(true)
+    expect(screen.getByLabelText<HTMLInputElement>(`${en.reasoningSend} off 1`).value).toBe('')
+  })
+
+  it('withdraws a level by emptying its wire, keeping an emptied off as nothing', () => {
+    render(<ListHarness initial={[{ id: 'm', reasoningEfforts: { off: null, low: 'low' } }]} />)
+    expandRow(1)
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(`${en.reasoningSend} low 1`), { target: { value: '' } })
+    expect(screen.getByLabelText<HTMLInputElement>('low').checked).toBe(false)
+    // off reworded and emptied again stores nothing to send, not a blank.
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(`${en.reasoningSend} off 1`), { target: { value: 'off' } })
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(`${en.reasoningSend} off 1`), { target: { value: '' } })
+    expect(screen.getByLabelText<HTMLInputElement>(`${en.reasoningSend} off 1`).value).toBe('')
+  })
+
+  it('changes nothing for a blank or already-offered name', () => {
+    render(<ListHarness initial={[{ id: 'm', reasoningEfforts: { off: null } }]} />)
+    expandRow(1)
+    // The add button owns validity: it stays disabled until the draft names a
+    // level not yet offered, so these clicks assert the disabled state rather
+    // than reaching the handler's own refusal.
+    expect(addButton().disabled).toBe(true)
+    fireEvent.click(addButton())
+    expect(screen.queryByLabelText(`${en.reasoningSend} ultra 1`)).toBeNull()
+    fireEvent.change(nameInput(1), { target: { value: 'off' } })
+    expect(addButton().disabled).toBe(true)
+    fireEvent.click(addButton())
+    expect(screen.getByLabelText<HTMLInputElement>(`${en.reasoningSend} off 1`).value).toBe('')
+  })
+
+  it('carries a catalog-disclosed vocabulary through adoption', async () => {
+    const discoverModels = vi.fn(async (): Promise<ModelDiscoveryOutcome> => ({
+      kind: 'found',
+      models: [{ id: 'catalog-model', reasoningEfforts: { off: null, high: 'high' } }],
+    }))
+    function AdoptHarness() {
+      const [rows, setRows] = useState<ModelDraft[]>([])
+      return (
+        <ModelListEditor
+          models={rows}
+          onChange={setRows}
+          probe={{ settingsNs: 'llm-pi-ai', provider: 'tokenrouter' }}
+          reasoningLevels={['off', 'low', 'high']}
+          operations={{ ...stubListOperations(), discoverModels }}
+          t={t}
+          disabled={false}
+        />
+      )
+    }
+    render(<AdoptHarness />)
+    // An unknown candidate starts picked, so adopting writes its row as-is.
+    fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+    fireEvent.click(await screen.findByRole('button', { name: en.fetchAdopt }))
+    expandRow(1)
+    expect(screen.getByLabelText<HTMLInputElement>(`${en.reasoningSend} high 1`).value).toBe('high')
+  })
+
+  it('shifts half-typed drafts with their rows on removal', () => {
+    render(<ListHarness initial={[{ id: 'a' }, { id: 'b' }, { id: 'c' }]} />)
+    expandRow(1)
+    expandRow(2)
+    expandRow(3)
+    // Rows without a custom dict show no add row; give each row a custom dict
+    // through the mode select first.
+    for (const row of [1, 2, 3]) {
+      fireEvent.change(
+        screen.getByLabelText<HTMLSelectElement>(`${en.reasoningEfforts} ${String(row)}`),
+        { target: { value: 'custom' } },
+      )
+    }
+    fireEvent.change(nameInput(1), { target: { value: 'first' } })
+    fireEvent.change(nameInput(2), { target: { value: 'second' } })
+    fireEvent.change(nameInput(3), { target: { value: 'third' } })
+    fireEvent.click(screen.getByLabelText(`${en.removeModel} 2`))
+    expect(nameInput(1).value).toBe('first')
+    expect(nameInput(2).value).toBe('third')
   })
 })

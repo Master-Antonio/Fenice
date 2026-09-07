@@ -1286,6 +1286,17 @@ describe('ChatView', () => {
     ])
   })
 
+  it('guides a refused reasoning effort toward the model setting that fixes it', () => {
+    const h = makeHarness({
+      nodes: [user(1, 'try'), { ...turnError(3), code: 'UNSUPPORTED_REASONING_EFFORT' }],
+    })
+    const view = render(<h.ChatView {...h.props} />)
+    const statuses = view.getAllByRole('status')
+    expect(statuses.map(status => status.textContent)).toEqual([
+      '本轮运行失败plugin exploded该模型不支持所选的推理等级。请将该模型的推理等级设为禁用，或选择提供方支持的等级。UNSUPPORTED_REASONING_EFFORT',
+    ])
+  })
+
   it('renders the max-tokens notice with localized guidance, distinct from turn errors', () => {
     const h = makeHarness({ nodes: [user(1, 'try'), assistant(2, 'truncated'), turnMaxTokens(3)] })
     const view = render(<h.ChatView {...h.props} />)
