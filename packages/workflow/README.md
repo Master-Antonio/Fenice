@@ -5,6 +5,8 @@ kind: "package-group"
 
 # packages/workflow
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 The workflow group lets an agent run a model-authored orchestration script that fans work out across many subagents and returns a final value. The `workflow` package provides the run service, the worker-thread package executes scripts in isolated threads, and two model-facing tools expose orchestration: the general `workflow` tool for scripted fan-out and the fixed `ralph` tool for fresh-agent iterative loops. The script coordinates agents with hooks while the agents do the actual work. The engine keeps a script's synchronous work off the host event loop but is containment, not a security boundary.
@@ -37,7 +39,7 @@ The workflow group lets an agent run a model-authored orchestration script that 
 - [Generated tool catalog](../../docs/tool-catalog.md#deepseek-aidsh-tool-ralph) — the `ralph` tool schema the model receives.
 - [Generated configuration catalog](../../docs/config-catalog.md#deepseek-aidsh-workflow-worker-thread) — every accepted engine config field.
 - [Dynamic workflows Agent Note](../../.agents/notes/implemented/feature/2026-07-05-dynamic-workflows.md) — the seam design and its decisions.
-- [Ralph tool Agent Note](../../.agents/notes/implemented/feature/2026-07-19-fresh-agent-ralph-workflow-tool.md) — the fixed fresh-agent loop design and deferred work.
+- [Harness-level goal-based execution Agent Note](../../.agents/notes/implemented/feature/2026-07-16-harness-level-loop.md) — the fixed fresh-agent loop design and deferred work.
 
 -----
 

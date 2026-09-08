@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-skill-badge
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 Agents can load the official "powered by dsh" badge skill from this bundled provider and follow its instructions for adding attribution badges to documents, pull requests, and other content produced with DeepSeek Harness. The provider has no configuration, and the shipped CLI composition includes the plugin disabled, so deployments enable it explicitly. The skill ships both Markdown snippets and a packaged PNG for systems that cannot reliably import remote images.
@@ -77,12 +79,11 @@ The provider is an immutable, synchronously registered skill source: it register
 <a id="further-exploration"></a>
 ## Further Exploration
 
-Read these pages when the package-level contract is not enough. They move from the registry this provider registers on to how the skill reaches the model and why the provider ships as it does.
+Read these pages when the package-level contract is not enough. They move from the registry this provider registers on to how the skill reaches the model.
 
 - [Skill subsystem reference](../../../docs/subsystems/skills.md) — the registry and provider contract this provider implements.
 - [skill package](../skill/README.md) — the registry the provider registers on, and the shared rendering of loaded skills.
 - [tool-skill package](../tool-skill/README.md) — how the badge skill reaches the session catalog and the model.
-- [Web preview product badge Agent Note](../../../.agents/notes/implemented/feature/2026-08-05-web-preview-product-badge.md) — why the provider ships disabled and the asset decisions.
 
 -----
 
@@ -98,6 +99,7 @@ Disabled by default, the plugin changes no request. When enabled, its catalog en
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define what the bundled provider does not do. They are current package constraints, not a task backlog.
 

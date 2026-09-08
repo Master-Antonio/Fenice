@@ -5,6 +5,8 @@ kind: "package-group"
 
 # session-query/ — session retrieval capability family
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 The `session-query/` group provides retrieval over live and durable session history, independent of compaction: programmatic callers query one unified service for exact logs, filtered lists, relationship traces, and full-text search; a SQLite backend powers the search; the model gets five workspace-authorized tools; and the Web UI gets an `/export` command that downloads a session ZIP. Search results agree with the conversation history the model sees. This page maps the group; each package README owns its per-package contract.
@@ -34,12 +36,11 @@ Each package README describes what you can do with its part of the family.
 <a id="related-documentation"></a>
 ## Related documentation
 
-Start with the subsystem reference for the shared query vocabulary, then the design records behind tracing, search, and the model-facing tools.
+Start with the subsystem reference for the shared query vocabulary, then the design records behind tracing and search.
 
 - [Session Query subsystem reference](../../docs/subsystems/session-query.md) — logical records, filters, search pages, lineage, bounded reads, and event relationships.
-- [Session query relationship tracing](../../.agents/notes/implemented/feature/2026-07-13-session-query-tracing.md) — trace semantics and the validation boundary.
-- [SQLite FTS5 session search](../../.agents/notes/implemented/feature/2026-07-10-sqlite-session-query-provider.md) — search semantics, reconciliation, and the tokenizer decision.
-- [Model-facing session query tools](../../.agents/notes/implemented/feature/2026-07-24-model-facing-session-query-tools.md) — workspace authority and the cursor-free result design.
+- [Session query relationship tracing](../../.agents/notes/archived/feature/2026-07-13-session-query-tracing.md) — trace semantics and the validation boundary.
+- [SQLite FTS5 session search](../../.agents/notes/archived/feature/2026-07-10-sqlite-session-query-provider.md) — search semantics, reconciliation, and the tokenizer decision.
 
 <a id="dev-note"></a>
 ## Dev Note

@@ -5,6 +5,8 @@ kind: "package-library"
 
 # @deepseek-ai/dsh-typert-protocol
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 With `dsh-typert-protocol`, business packages can expose Host methods to Remote clients: mark a method with `@Remote` (or `@RemoteScope` for scoped receivers), bind the service to a wire namespace, and associate Host objects and scoped Contexts with wire identities through the merge-extensible protocol maps. Generated artifacts, the Host Gateway, and the Client API consume the same invocation descriptors, codecs, and provider contracts, so one declaration set stays in sync across every face. The package registers no Cordis service and runs no TypeScript analysis; it declares types and decorator markers only.
@@ -44,7 +46,7 @@ Generation turns the method into a wire endpoint under the service's namespace; 
 
 ### Associating Host objects and Contexts with wire identities
 
-Complex Host objects cannot cross the wire directly. A business package declares the association through the merge-extensible `TypertLookupMap` and `TypertContextMap`. Host and Client Context adapters both map `Context` to a wire identity and that identity back to `Context`; the Host adapter also owns the stable wire declaration. Host composition may override its synchronous or asynchronous resolver. A resolver that refuses on policy grounds throws `RemoteError` with its own code, which reaches the caller unchanged.
+Complex Host objects cannot cross the wire directly. A business package declares the association through the merge-extensible `TypertLookupMap` and `TypertContextMap`. A Host Context adapter owns the stable wire declaration and resolves wire identities to live Contexts. A Client Context adapter maps in both directions because scoped calls originate from a Client Context and forwarded Host events resolve their explicit wire identity there. Host composition may override its synchronous or asynchronous resolver. A resolver that refuses on policy grounds throws `RemoteError` with its own code, which reaches the caller unchanged.
 
 ### Reporting and reading a Remote failure
 
@@ -129,6 +131,7 @@ No direct effect; the declared contracts reach a request only when an assembly p
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define what the declarations can represent; they are current package constraints, not a task backlog.
 

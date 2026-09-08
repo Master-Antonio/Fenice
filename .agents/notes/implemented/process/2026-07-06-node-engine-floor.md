@@ -2,13 +2,15 @@
 
 Status: implemented
 
+English | [中文](2026-07-06-node-engine-floor.zh.md)
+
 ## Problem
 
 The Node 22 branch of the root `engines.node` range is a contract for the installed workspace, not only for the runtime APIs the harness source calls directly. It must be no lower than package `engines.node` declarations for dependencies the workspace installs on that branch; otherwise `pnpm install --engine-strict` fails at an advertised LTS version, and non-strict installs run outside a dependency's supported runtime.
 
 ## Decision
 
-Set `engines.node` to `^22.19.0 || >=24.0.0` and test keyless CI on `['22.19', 24, 26]`. The primary Node 24 jobs own the complete typecheck and unit coverage inventory; every version runs focused source-worker, Zstandard, source-launch, and [jsdom storage](../testing/2026-07-30-vitest-jsdom-webstorage-ownership.md) smokes without repeating that inventory. The real-API e2e workflow stays on Node 24 because it exercises API integration rather than the runtime floor.
+Set `engines.node` to `^22.19.0 || >=24.0.0` and test keyless CI on `['22.19', 24, 26]`. The primary Node 24 jobs own the complete typecheck and unit coverage inventory; every version runs focused source-worker, Zstandard, source-launch, and [jsdom storage](../../archived/testing/2026-07-30-vitest-jsdom-webstorage-ownership.md) smokes without repeating that inventory. The real-API e2e workflow stays on Node 24 because it exercises API integration rather than the runtime floor.
 
 Two Node features gate the source runtime:
 

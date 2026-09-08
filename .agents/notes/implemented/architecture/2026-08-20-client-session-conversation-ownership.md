@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-08-20-client-session-conversation-ownership.zh.md)
+
 ## Problem
 
 The Web Client once placed Session and Workspace objects, event windows, Conversation assembly, React hooks, the Slot registry, and the Store engine in one general Runtime. Protocol state, business projections, React bindings, and page presentation shared one dependency hub, so a change in any layer could spread across the entire frontend.
@@ -300,7 +302,7 @@ It registers the `chat` target source through `ctx.uiSession.provide()`. `ChatVi
 
 Only visible non-command Chat Nodes activate Chat. Ordinary command-only history keeps the Hero visible; the `/goal` `command-input` Node activates a fresh Conversation.
 
-The historical-image cache moved to `ui-conversation` (`ctx.uiConversation.imageUrl`), so Chat and Trajectory share one authorized read and one browser URL per session attachment ([Trajectory durable image attachments](../feature/2026-08-24-trajectory-image-attachments.md)); draft images remain part of Conversation input.
+The historical-image cache moved to `ui-conversation` (`ctx.uiConversation.imageUrl`), so Chat and Trajectory share one authorized read and one browser URL per session attachment ([Trajectory durable image attachments](../../archived/feature/2026-08-24-trajectory-image-attachments.md)); draft images remain part of Conversation input.
 
 ### Trajectory owner
 

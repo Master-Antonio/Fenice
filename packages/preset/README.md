@@ -5,6 +5,8 @@ kind: "package-group"
 
 # packages/preset
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 The preset group provides per-session agent composition: an agent preset is a directory holding one `agent.cordis.yml`, and a session composed from a preset runs that preset's tools, prompt sections, and skills while every other session keeps its own. `agent-presets` owns the roster — discovery over configured roots plus the harness home, the guarded per-agent mount, and copy-only authoring — and `persona` supplies the composable row that lets a preset change an agent's identity and not only its tools. Together they let one process run several differently composed agents at once.
@@ -34,7 +36,6 @@ The preset group provides per-session agent composition: an agent preset is a di
 - [Scope subsystem](../../docs/subsystems/scope.md) — scope keys and the parent chain the mount uses to join agents.
 - [System prompt subsystem](../../docs/subsystems/system-prompt.md) — how preset prompt sections register and assemble.
 - [Per-session agent presets note](../../.agents/notes/implemented/architecture/2026-08-03-per-session-agent-presets.md) — design rationale and alternatives.
-- [Per-preset standing mounts note](../../.agents/notes/implemented/architecture/2026-08-08-per-preset-standing-mounts.md) — why the mount is standing and shared.
 
 The presets the deployment ships live in [`agent-presets/presets/`](agent-presets/presets) — one directory per preset, and that directory listing is the roster; naming them here too would be a second list to keep in step.
 

@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-invariants
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-invariants` runs package-owned runtime checks — invariants — inside a DeepSeek Harness composition: any package can ship a `./invariant` companion that verifies its own durable relationships (authoritative event streams and mutable snapshots) while the composition runs. Checks run automatically, and a failed check reports an `InvariantError` attributed to the package that owns the violated relationship. Choose it for compositions that want self-checking diagnostics with a global switch and package-name filters; the standard agent composition already mounts it with the four core companions, and loading the service alone installs no checks.
@@ -95,7 +97,7 @@ A violation throws an `InvariantError` from the context that reported it: it car
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-This section explains the design behind the registry; the observable behavior is covered in [Use this package](#use-this-package). The full decision rationale lives in the [invariant-service Agent Note](../../../.agents/notes/implemented/architecture/2026-07-19-package-owned-invariant-service.md).
+This section explains the design behind the registry; the observable behavior is covered in [Use this package](#use-this-package).
 
 ### Design philosophy
 
@@ -126,7 +128,6 @@ Read these pages when the package-level contract is not enough. They move from t
 
 - [Runtime invariants subsystem](../../../docs/subsystems/invariants.md) — the generated reference for `Config`, the installer, the service, and the companion contract.
 - [Generated configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-invariants) — every accepted config field and its source declaration.
-- [Package-owned invariant service Agent Note](../../../.agents/notes/implemented/architecture/2026-07-19-package-owned-invariant-service.md) — why checks live beside their owners and the registry owns selection and lifecycle.
 - [Invariant runtime contracts Agent Note](../../../.agents/notes/implemented/architecture/2026-07-19-package-invariant-runtime-contracts.md) — what a runtime invariant may assert and the mechanical gate that enforces companion wiring.
 - [Runtime-diagnostics group map](../../README.md) — adjacent diagnostics packages.
 
@@ -144,6 +145,7 @@ Checks observe assembled requests and durable state without mutating request con
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define when the registry is a poor fit or needs operational care. They are current package constraints, not a task backlog.
 

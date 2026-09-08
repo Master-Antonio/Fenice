@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-07-24-project-session-directories.zh.md)
+
 ## Problem
 
 A persistence root may be local to one project, shared by several projects, temporary, or centralized. The hashed cwd buckets kept all deployments functional but made a shared root difficult to navigate because a developer could not recognize a project from its directory name.
@@ -27,7 +29,7 @@ Case-insensitive filesystems can also make differently cased project keys refer 
 
 The configured root remains a deployment choice. The layout neither selects a global root nor requires projects to share one. When a deployment does centralize storage, project paths remain recognizable; a project-local root uses the same deterministic structure.
 
-The encoded session id names an ownership directory rather than the transcript itself. The backend's diagnostics-only `locate` hook resolves the fixed transcript path inside it for format-refusal messages ([export and pre-release trims](../simplification/2026-08-27-persistence-export-and-pre-release-trims.md) owns removing the consumer-facing path query). Discovery ignores other entries inside the session directory so the backend can add session-owned artifacts without another layout change.
+The encoded session id names an ownership directory rather than the transcript itself. The backend's diagnostics-only `locate` hook resolves the fixed transcript path inside it for format-refusal messages ([export and pre-release trims](../../archived/simplification/2026-08-27-persistence-export-and-pre-release-trims.md) owns removing the consumer-facing path query). Discovery ignores other entries inside the session directory so the backend can add session-owned artifacts without another layout change.
 
 Lazy materialization remains tied to the transcript: `create()` performs no filesystem I/O, and the first append creates the project/session directories before collision-safe transcript publication. Empty directories are not listed as sessions. The backend rejects flat `<project>/<id>.jsonl*` artifacts with an explicit layout error; the pre-release format provides no automatic data migration.
 

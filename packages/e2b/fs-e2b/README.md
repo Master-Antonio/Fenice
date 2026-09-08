@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-fs-e2b
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-fs-e2b` runs the agent's file operations inside the remote sandbox: the agent can read files, list directories, write new files, overwrite or edit existing ones, and get accurate metadata — all in the same remote world where its commands run. It needs no configuration; mounting it moves file work off the host machine. Use it together with `dsh-e2b` and `dsh-subprocess-e2b` so files and commands share one remote working directory. The host machine's files are never touched, and results look to the model exactly like local file results. Choose the local filesystem package instead when files should live on the host.
@@ -42,7 +44,7 @@ Mounting it does not copy or mirror your local files — the sandbox's working d
 
 ### Reading files
 
-The agent can read a file's whole contents, stream large files, or read raw bytes up to a size cap. Binary files and files that are not valid UTF-8 text are refused with a clear message instead of being garbled; reads past the size cap fail with a message naming the limit.
+The agent can read a file's whole contents, stream large files, or read raw bytes up to a size cap or as one byte window. Binary files and files that are not valid UTF-8 text are refused with a clear message instead of being garbled; reads past the size cap fail with a message naming the limit.
 
 ### Writing and editing files
 
@@ -115,6 +117,7 @@ No direct invalidation: `dsh-tool-fs` owns any request-prefix changes; the E2B t
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define when the provider is a poor fit or needs special operational care. They are current package constraints, not a task backlog.
 

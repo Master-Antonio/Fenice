@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-time-context
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-time-context` gives the model a clock: on eligible steps it appends a durable, source-attributed reading with the current time, the browser zone attached to the open request, and the elapsed time since the preceding model-visible message. It helps the model interpret otherwise-unqualified dates and times in the user's browser zone, and tells it to ask when zone provenance is mixed or missing. The plugin is opt-in: default compositions leave it disabled, and the Schedule Web overlay mounts it. A positive `refreshIntervalMs` reduces how often readings accumulate; omission or `0` injects at every eligible step.
@@ -86,7 +88,6 @@ When an injection is due, the plugin samples the wall clock, derives the browser
 
 Read these pages when the package-level contract is not enough. They move from the design decision to the composition that mounts the plugin and the exhaustive configuration.
 
-- [Durable per-step time-context decision record](../../../.agents/notes/implemented/feature/2026-07-16-durable-per-step-time-context.md) — design rationale for the durable reading.
 - [Schedule user guide](../../../docs/user/guide/schedule.md) — the official configuration path for mounting this plugin.
 - [Context group map](../README.md) — sibling request-context packages.
 - [Generated configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-time-context) — every accepted config field and its source declaration.
@@ -129,6 +130,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define when clock context is a poor fit. They are current package constraints.
 

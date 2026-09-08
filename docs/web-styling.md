@@ -1,5 +1,7 @@
 # Web UI style reference
 
+English | [中文](web-styling.zh.md)
+
 This reference defines styling ownership and component rules for browser client packages. The current token values live in [`packages/client/ui-theme/src/styles/`](../packages/client/ui-theme/src/styles/); this document does not duplicate that generated-by-source inventory.
 
 ## Ownership
@@ -10,6 +12,7 @@ Global style sheets belong in `ui-theme/src/styles/`. Component styles live besi
 
 ## Component rules
 
+- Reuse the control before restyling one: the [ui-primitives component catalog](../packages/client/ui-primitives/README.md#component-catalog) is the only channel that crosses feature packages, and a deliberate visual difference belongs in a prop there rather than in a second copy ([decision](../.agents/notes/implemented/architecture/2026-09-05-shared-client-control-primitives.md)).
 - Use CSS Modules and `clsx`; do not add a component library or Tailwind.
 - Use `--dsw-alias-*` semantic tokens in feature components. Do not copy static palette values or write literal colors there.
 - Keep theme selectors out of feature component CSS. Light/dark overrides belong to the theme owner.

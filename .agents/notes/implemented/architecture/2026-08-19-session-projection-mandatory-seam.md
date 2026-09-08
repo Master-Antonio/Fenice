@@ -2,13 +2,15 @@
 
 Status: implemented
 
+English | [中文](2026-08-19-session-projection-mandatory-seam.zh.md)
+
 ## Problem
 
 An optional projection registry lets a plugin whose host behavior reads projected state activate without that state. Unless the reader rejects the missing registry or key, the host behavior or subagent catalog fields can silently disappear. Batch-only reads also materialize every client view when a consumer needs one host value. Some contributor sites intentionally retain optional `ctx.inject` registration, so their readers need an explicit missing-state rule.
 
 ## Decision
 
-This decision builds on the split between host projection state and client views in [Session projection state and client views](2026-08-19-session-projection-state-and-client-views.md).
+This decision builds on the split between host projection state and client views in [Session projection state and client views](../../archived/architecture/2026-08-19-session-projection-state-and-client-views.md).
 
 Every host reader treats the projection registry and its required key as mandatory state. A plugin either declares `sessionProjections` as a required injection or resolves the registry and key explicitly and throws on the first dependent access. Official compositions mount the registry before those plugins. `ApiProxyService` follows the required-injection form; the lower-level `createApiProxy` factory remains tolerant for isolated tests and diagnostics.
 

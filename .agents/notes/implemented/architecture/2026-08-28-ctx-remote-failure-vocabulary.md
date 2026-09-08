@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-08-28-ctx-remote-failure-vocabulary.zh.md)
+
 ## Problem
 
 Every Remote owner package maintained its own failure surface: an `XxxErrorDetailsMap` interface, an `XxxError` union derived from it, and an exit mapping function that translated domain error classes (`UnknownPresetError`, `PresetMountError`, `SessionTitleInvalidError`, and their peers) into a wire failure value. `@deepseek-ai/dsh-typert-protocol` carried two failure classes at once — `TypertRemoteFailure` for a failure an owner reported and `TypertLookupFailure` for one a lookup resolver produced — while `@deepseek-ai/dsh-client-connection` kept a second typed view, `RpcErrorDetailsMap`, that hardcoded domain codes such as `agent-preset-not-found` and `session-not-found` into the carrier.
@@ -83,4 +85,4 @@ The type of `details` follows from the code, so a code-and-details mismatch is r
 
 `RemoteError` is an `Error`, so it keeps `message` and `cause` through any logger and through `errorChain()`; but `cause` holds only in-process, and the wire carries exactly `code`, `message`, and `details`. Cross-realm discrimination always reads the structural marker, and any new transport (a worker, a bundle split) must carry that marker or an equivalent marker frame across, or failure values degrade into plain `Error`s.
 
-Consumer signatures for Remote methods are uniformly `Promise<RemoteResult<T>>`, matching the generated projection described in [the method-call surface](2026-08-02-typert-remote-method-calls.md); the ledger for the unary endpoints is [the unary endpoint migration](2026-08-10-unary-apiproxy-remote-migration.md).
+Consumer signatures for Remote methods are uniformly `Promise<RemoteResult<T>>`, matching the generated projection described in [the method-call surface](2026-08-02-typert-remote-method-calls.md); the ledger for the unary endpoints is [the unary endpoint migration](../../archived/architecture/2026-08-10-unary-apiproxy-remote-migration.md).

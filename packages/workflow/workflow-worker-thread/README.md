@@ -5,9 +5,11 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-workflow-worker-thread
 
+English | [中文](README.zh.md)
+
 ## Summary
 
-`dsh-workflow-worker-thread` implements the workflow engine with one Node worker thread per run: the orchestration script executes inside a fresh worker while its `agent()` calls reach host subagents over a typed host/worker protocol. A synchronous script loop cannot block the harness event loop, and a script that ignores cancellation can be terminated with its worker. The isolation is containment, not a security boundary — a model-written script has the same trust premise as the model's existing bash access, and escaping the `node:vm` context recovers the worker's process authority. Mount this engine to give `ctx.workflowEngine` a concrete implementation; a composition that loads it with `dsh-tool-workflow` gives the model the `workflow` tool.
+Use `dsh-workflow-worker-thread` to run model-written workflow scripts away from the host event loop. Each run receives its own worker thread, so synchronous loops do not stall the harness and scripts that ignore cancellation can be terminated. The engine supports the `workflow` and `ralph` tools in shipped compositions and can be paired with `dsh-tool-workflow` to expose `workflow` in another composition. This isolation limits availability failures but is not a security boundary; genuinely untrusted scripts require a separate process or container.
 
 ## Table of Contents
 
@@ -158,6 +160,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define when the engine is a poor fit or needs special operational care. They are current constraints, not a task backlog.
 

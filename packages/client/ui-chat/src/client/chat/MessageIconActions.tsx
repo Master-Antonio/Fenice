@@ -1,12 +1,9 @@
+// Shared IconActions chrome for user and assistant messages: copy
+// live, optional branch wiring, and an optional date-aware clock.
+
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import {
-  IconBranchOutline16,
-  IconCheckOutline16,
-  IconCopyOutline16,
-  IconEditOutline16,
-  IconTrashOutline16,
-  Tooltip,
-  writeClipboard,
+  IconBranchOutline16, IconCheckOutline16, IconCopyOutline16, IconEditOutline16, IconTrashOutline16, Tooltip, writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import { formatMessageClock } from './message-chrome.ts'

@@ -5,6 +5,8 @@ kind: "package-library"
 
 # @deepseek-ai/dsh-deque
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-deque` lets Host and browser packages drain long-lived in-process queues without moving every remaining entry after each removal. Callers append or prepend entries and remove them from the front with amortized constant-time operations. The deque owns entry order and backing-storage release; each consumer still owns wake-up, failure, cancellation, capacity, and overload behavior.
@@ -72,7 +74,7 @@ The deque stores entries in a circular array. Removing an entry clears that slot
 ## Further Exploration
 
 - [Utility package map](../README.md) — the other zero-dependency primitives shared across package groups.
-- [Linear stream queue decision](../../../.agents/notes/implemented/bug-fix/2026-08-28-linear-stream-queue-drain.md) — why production streams use this deque instead of array head removal.
+- [Linear stream queue decision](../../../.agents/notes/archived/bug-fix/2026-08-28-linear-stream-queue-drain.md) — why production streams use this deque instead of array head removal.
 
 -----
 

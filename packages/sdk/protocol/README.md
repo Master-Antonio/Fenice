@@ -5,6 +5,8 @@ kind: "package-library"
 
 # @deepseek-ai/dsh-sdk-protocol
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-sdk-protocol` lets a DeepSeek Harness runtime and its SDK clients exchange JSON-RPC 2.0 messages over newline-delimited byte streams: one transport class plus the named request, result, and notification types both wire ends speak. The serving side is the [`dsh-sdk-jsonrpc-server`](../server/README.md) plugin; the clients are the TypeScript [`dsh-sdk-client`](../client/README.md) and the [Python SDK](../../../python/README.md), which mirrors these shapes without importing them. Use this package when you implement or debug a wire end: framing rules, method names, payload types, and error semantics all live here. It is a pure library — no plugin, no configuration, no registrations.
@@ -89,7 +91,6 @@ Read these pages when the wire contract is not enough. They move from the servin
 - [TypeScript SDK client](../client/README.md) — the client that drives this protocol.
 - [Python SDK](../../../python/README.md) — the Python counterpart that mirrors these shapes.
 - [SDK application bundle](../../bundle/sdk-app/README.md) — the `dsh --profile sdk` application that boots the server.
-- [TypeScript SDK and SDK subagent backend decision](../../../.agents/notes/implemented/feature/2026-07-27-typescript-sdk-and-sdk-subagent-backend.md) — the client contract this protocol serves.
 
 -----
 
@@ -105,6 +106,7 @@ None; this package neither assembles nor sends a provider request.
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define what the protocol does not cover or promise. They are current package constraints, not a comparison with other wire formats or a task backlog.
 

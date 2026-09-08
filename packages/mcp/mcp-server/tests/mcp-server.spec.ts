@@ -56,7 +56,7 @@ function installSessionControllerStub(ctx: Context): {
 
 async function toolContext(): Promise<Context> {
   const ctx = new Context()
-  await ctx.plugin(SystemPrompt, { persona: '' })
+  await ctx.plugin(SystemPrompt, { personaPrefix: '' })
   await ctx.plugin(ToolRuntime)
   return ctx
 }
@@ -273,7 +273,7 @@ describe('McpServerService', () => {
   it('exposes the validated config through the service surface', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)
-    await ctx.plugin(SystemPrompt, { persona: '' })
+    await ctx.plugin(SystemPrompt, { personaPrefix: '' })
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(McpServerService, { flags: { mcpServer: true } })
 
@@ -289,7 +289,7 @@ describe('McpServerService', () => {
 
   it('rejects a misconfigured surface at plugin time', async () => {
     const ctx = new Context()
-    await ctx.plugin(SystemPrompt, { persona: '' })
+    await ctx.plugin(SystemPrompt, { personaPrefix: '' })
     await ctx.plugin(ToolRuntime)
     await expect(ctx.plugin(McpServerService, { name: '' })).rejects.toThrow()
     await ctx.fiber.dispose()

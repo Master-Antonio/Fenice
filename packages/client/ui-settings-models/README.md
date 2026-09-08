@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-client-ui-settings-models
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-client-ui-settings-models` is the Models settings page of the dsh web client: users configure API keys (stored write-only under the profile's credential reference), edit each provider's model list, and hand-declare custom pi-ai routes, with provider rows and one editor card at a time. The page joins the provider directory, the settings document, and the credential descriptions into one shared snapshot, so a row's state stays consistent across all three. It also walks first-run users through two ordered dialogs — a versioned internal-testing notice and the conditional official-DeepSeek credential step.
@@ -84,7 +86,7 @@ These pages cover the settings base, the seams this page joins, and the design r
 - [settings](../../settings/README.md) — the durable user-settings seam and its file provider.
 - [credentials](../../credentials/README.md) — the credential-reference seam this page writes keys through.
 - [llm](../../llm/README.md) — the adapter registry whose providers this page configures.
-- [Web config plane](../../../.agents/notes/implemented/architecture/2026-07-30-web-config-plane.md) — the hand-written editor's design rationale.
+- [Web config plane](../../../.agents/notes/archived/architecture/2026-07-30-web-config-plane.md) — the hand-written editor's design rationale.
 
 -----
 

@@ -1,5 +1,7 @@
 # Client Modules
 
+English | [中文](client-modules.zh.md)
+
 The web plugin table: the Node half of the client module system in [dsh-client-modules](../../packages/client/modules), provided as `ctx.clientModules` (`ClientModuleRegistry`). It scans the host Loader's entries for packages declaring `dsh.client`, composes the `window.__DSH_BOOT__` entry graph, serves versioned one-or-more-resource combo scripts under `/plugins`, and answers every index-injection collection with the boot protocol rows — the four faces of one service. It is an optional capability of the web GUI stack, not part of the agent-loop spine, and it is a consumer of [dsh-host-webserver](../../packages/host/webserver): the carrier described in [web-server.md](web-server.md) supplies the prefix route and the `webserver/index-inject` event this service answers. The same package's browser half (`ctx.modules`, the lazy-CJS module table that fetches and materializes these bundles) is kernel machinery documented in the [package README](../../packages/client/modules/README.md), not here.
 
 Source: [`packages/client/modules/src/client/manifest.ts`](../../packages/client/modules/src/client/manifest.ts)
@@ -127,6 +129,15 @@ graph(): WebBootGraph
  * @returns the path, or undefined for an unknown id.
  */
 clientPath(id: string): string | undefined
+
+/**
+ * Serve an advertised revisioned bundle or source map without a Web server.
+ * Unknown URLs return 404, unsupported methods return 405, and `HEAD`
+ * returns the same immutable headers without a body.
+ * @param request - shell-carrier request for a `/plugins` resource.
+ * @returns the exact response also exposed by the optional Web route.
+ */
+fetchBundle(request: Request): Response
 
 /**
  * Filesystem baseline captured before an entry's current bytes were read.

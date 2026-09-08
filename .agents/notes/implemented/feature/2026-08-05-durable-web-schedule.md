@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-08-05-durable-web-schedule.zh.md)
+
 ## Problem
 
 A reminder created inside a conversation must remain attributable to that exact Session and survive a process restart. A process-local timer or inbox item cannot provide that durability, while a global scheduler or private database introduces a second identity, persistence, and lifecycle system.
@@ -12,7 +14,7 @@ Busy Agents, long waits, wall-clock changes, cold Sessions, forks, persistence f
 
 The [Schedule guide](../../../../docs/user/guide/schedule.md) uses an overlay that explicitly loads `@deepseek-ai/dsh-time-context` and `@deepseek-ai/dsh-schedule`, and enables the Web bundle's otherwise-disabled `ui-schedule` row. The default Web startup graph remains inactive for Schedule. Schedule observes only root Agents published after the plugin loads and installs its three tools plus one disposable owner in that Agent scope. Cold history reads, already-published roots, child Agents, and other hosts do not activate the runtime.
 
-The user-visible boundary is `session-local`: the original Session runs an on-time reminder only while live, does no external notification while cold, and processes an overdue reminder after it becomes live again. Due work waits until the Agent is fully idle, then enters the ordinary next-turn queue through `followup()`; it never steers the current turn and has no independent Web receipt ([conversational delivery](../simplification/2026-08-09-conversational-schedule-delivery.md)).
+The user-visible boundary is `session-local`: the original Session runs an on-time reminder only while live, does no external notification while cold, and processes an overdue reminder after it becomes live again. Due work waits until the Agent is fully idle, then enters the ordinary next-turn queue through `followup()`; it never steers the current turn and has no independent Web receipt ([conversational delivery](../../archived/simplification/2026-08-09-conversational-schedule-delivery.md)).
 
 | Scenario | Durable fact | Live behavior | User-visible result |
 | --- | --- | --- | --- |
@@ -26,7 +28,7 @@ The user-visible boundary is `session-local`: the original Session runs an on-ti
 
 The version-1 `schedule/change` stream is the only durable Schedule authority. A create record owns a Session-local, non-reused branded id, the trimmed prompt, its rule discriminator, and UTC target. Delete and one-shot dispatch are terminal transitions. Every dispatch stores its id and decision time so the fold advances that record directly past missed occurrences. The strict decoder and pure fold reject unknown versions, extra fields, reused ids, mismatched dispatch shapes, and transitions against inactive records. A normal Session folds its complete stream; a fork folds only events at or after the `inheritedEventCount` passed into projection initialization.
 
-When `ctx.sessionProjections` exists, Schedule registers a strict unit that uses the same transition and publishes the complete active `ScheduleRecord[]`; the shared [projection state decision](../architecture/2026-08-19-session-projection-state-and-client-views.md) owns its initialization and restore contract. Corrupt durable input fails the existing read path rather than yielding a partial array. The browser-safe record vocabulary is exposed through the type-only `@deepseek-ai/dsh-schedule/client` subpath.
+When `ctx.sessionProjections` exists, Schedule registers a strict unit that uses the same transition and publishes the complete active `ScheduleRecord[]`; the shared [projection state decision](../../archived/architecture/2026-08-19-session-projection-state-and-client-views.md) owns its initialization and restore contract. Corrupt durable input fails the existing read path rather than yielding a partial array. The browser-safe record vocabulary is exposed through the type-only `@deepseek-ai/dsh-schedule/client` subpath.
 
 The current rule union accepts a non-empty prompt and exactly one selector. `after_seconds` is a positive safe-integer delay whose record is `{ id, kind: 'after', prompt, afterSeconds, scheduledAt }`. `at` is either strict RFC 3339 with `Z` or a numeric offset, or structured `{ date, time, time_zone }` with an explicit zone; its record is `{ id, kind: 'at', prompt, scheduledAt }`. `every_seconds` is a safe integer of at least 300 whose `{ id, kind: 'every', prompt, everySeconds, scheduledAt }` record stays aligned to its creation-plus-interval sequence. One-shot dispatch stores only the id; Every dispatch stores `id + acceptedAt`. Tool values derive `scheduled` or `overdue` and include `deliveryMode: 'session-local'`.
 
@@ -46,7 +48,7 @@ Every is a fixed-duration interval, not a calendar rule. The first target is cre
 
 All distinct overdue Every records participate in one batch, each with one latest occurrence and one shared `acceptedAt`. There is no cross-record cooldown, gate, quota, or retained batch timestamp. A five-minute minimum bounds wake and model-request frequency. If the next sequence point would exceed the four-digit-year storage range, dispatch terminates that record.
 
-Calendar and Cron expressions are deliberately absent ([bounded recurrence simplification](../simplification/2026-08-09-bounded-fixed-rate-schedule.md)); supporting them would add a time-zone-sensitive calendar language, evaluator dependency, validation surface, and tzdata replay policy unrelated to fixed-rate reminders.
+Calendar and Cron expressions are deliberately absent ([bounded recurrence simplification](../../archived/simplification/2026-08-09-bounded-fixed-rate-schedule.md)); supporting them would add a time-zone-sensitive calendar language, evaluator dependency, validation surface, and tzdata replay policy unrelated to fixed-rate reminders.
 
 ### Live delivery lifecycle
 

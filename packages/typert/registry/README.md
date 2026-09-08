@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-typert-registry
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-typert-registry` makes generated Typert artifacts queryable at runtime: each package's reflection — services, events, and objects — its live Zod schemas, and Remote invocation descriptors live under stable keys that consumers can query or resolve on demand. Registrations are atomic and fiber-scoped: a contribution lands whole or not at all and is withdrawn automatically when the registering component unloads. The same service hosts the lookup and scoped-Context provider registries that Remote calls resolve through. It performs no TypeScript analysis and generates no schemas; the generator and the loader handle those.
@@ -43,7 +45,7 @@ Generated artifacts register through the [loader](../loader/README.md) in Loader
 
 ### Lookup and Context providers
 
-Remote calls resolve Host objects and scoped Contexts through `ctx.typert.lookups` and `ctx.typert.contexts`. `registerHost()` installs one bidirectional Host Context adapter and its wire declaration, while `configureHost()` replaces only its resolver. `registerClient()` installs the bidirectional Client adapter for the same merge-declared kind. `identifyHost(ctx)` asks the Host adapters for the single kind and identity represented by a live Context and rejects ambiguous recognition.
+Remote calls resolve Host objects and scoped Contexts through `ctx.typert.lookups` and `ctx.typert.contexts`. `registerHost()` installs the Host wire declaration and its wire-to-Context resolver, while `configureHost()` replaces only that resolver. `registerClient()` installs the bidirectional Client adapter for the same merge-declared kind. Host-to-Client event sources carry their domain identity explicitly instead of projecting it back from a Context.
 
 -----
 
@@ -110,6 +112,7 @@ No direct effect; a consumer that places reflection or schemas in a request owns
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define what the registry stores and rejects; they are current package constraints, not a task backlog.
 

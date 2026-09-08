@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-08-11-background-job-completion-wakes-an-idle-owner.zh.md)
+
 ## Problem
 
 `tool-jobs` promised the model "You are notified in-session when a task finishes — do not busy-poll or sleep on one." The promise held only while the model was still working. Completion delivered through `agent.inject()`, which appends to the next-step inbox without reserving a driver, so a task settling after its turn closed left the notice parked until something unrelated woke the agent. The common shape is exactly the one that breaks: the model starts a long command, tells the user it started it, ends its turn, and the command finishes into an inbox nobody will claim. The prompt told the model not to poll, and then nothing arrived.
@@ -10,7 +12,7 @@ The gap was recorded as a limitation rather than reasoned about, so the fallback
 
 This supersedes one fact of the [background-job runtime decision](../architecture/2026-06-20-generic-long-running-tool-runtime.md) — that completion never wakes an idle owner — and adds teardown as a `reported` setter. That note keeps every other task-runtime decision and is updated in place rather than replaced.
 
-The delivery machinery was never the obstacle. `Agent.send(message, target, wakeup)` has covered the `target` × `wakeup` matrix since the [unified send decision](../architecture/2026-07-22-unified-send-and-coalesced-user-messages.md), and `wakeDriver()` already handles idle, maintenance, and cancelled-converging phases. The missing piece was the policy choice of which lane a completion takes, plus the bound that choice needs.
+The delivery machinery was never the obstacle. `Agent.send(message, target, wakeup)` has covered the `target` × `wakeup` matrix since the [unified send decision](../../archived/architecture/2026-07-22-unified-send-and-coalesced-user-messages.md), and `wakeDriver()` already handles idle, maintenance, and cancelled-converging phases. The missing piece was the policy choice of which lane a completion takes, plus the bound that choice needs.
 
 ## Decision
 

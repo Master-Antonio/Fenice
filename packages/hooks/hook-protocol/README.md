@@ -5,6 +5,8 @@ kind: "package-library"
 
 # @deepseek-ai/dsh-hook-protocol
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-hook-protocol` makes both bridges handle your hooks identically: it defines what a hook can do and what happens when it runs. You never install or configure it yourself — choose `dsh-hooks-claude-code` or `dsh-hooks-codex`, point it at your existing `hooks.json`, and these rules apply to your hooks. Through either bridge, a hook can block a prompt or tool call with a message the model sees, attach extra context to the conversation, or ask the run to stop. Only command hooks run; `http`, `mcp_tool`, `prompt`, and `agent` handlers are skipped with a warning.
@@ -73,7 +75,7 @@ Invocation and result records must sit inside an open turn: `UserPromptSubmit`, 
 - **Never throw into the loop.** Every failure mode — malformed JSON, an invalid regex, an executor rejection — degrades to a contained outcome or a non-match, so a hook can never crash the calling turn.
 - **Log-only, turn-enclosed events.** The `hook/*` records are durable evidence of what ran and what it decided; they are not surface events, and the invariant companion rejects them outside an open turn.
 
-The [hook-protocol-lib Agent Note](../../../.agents/notes/implemented/feature/2026-06-30-hook-protocol-lib.md) records the shared-versus-per-dialect split and the alternatives considered.
+The [hook-protocol-lib Agent Note](../../../.agents/notes/archived/feature/2026-06-30-hook-protocol-lib.md) records the shared-versus-per-dialect split and the alternatives considered.
 
 ### Source map
 
@@ -99,8 +101,8 @@ The [hook-protocol-lib Agent Note](../../../.agents/notes/implemented/feature/20
 Read these pages when the package-level contract is not enough. They move from the shared rules to the bridges that apply them and the extension points they program against.
 
 - [Hooks group map](../README.md) — the sibling group page and its package table.
-- [Hook protocol library Agent Note](../../../.agents/notes/implemented/feature/2026-06-30-hook-protocol-lib.md) — why the protocol core is shared and what each bridge owns.
-- [Hook bridges Agent Note](../../../.agents/notes/implemented/feature/2026-06-30-hook-bridges.md) — how the two bridges use these primitives.
+- [Hook protocol library Agent Note](../../../.agents/notes/archived/feature/2026-06-30-hook-protocol-lib.md) — why the protocol core is shared and what each bridge owns.
+- [Hook bridges Agent Note](../../../.agents/notes/archived/feature/2026-06-30-hook-bridges.md) — how the two bridges use these primitives.
 - [Interception extension-points Agent Note](../../../.agents/notes/implemented/feature/2026-06-30-interception-extension-points.md) — the typed-Decision surface the bridges map onto.
 - [Generated persistence log event catalog](../../../docs/persistence-catalog.md) — the `hook/*` event payloads and per-event JSDoc.
 
@@ -118,6 +120,7 @@ No direct invalidation; the named consumers own any request-prefix changes.
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits describe what hooks cannot do through the shared engine yet. They are current package constraints, not a task backlog.
 

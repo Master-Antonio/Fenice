@@ -5,9 +5,11 @@ kind: "package-library"
 
 # @deepseek-ai/dsh-loader-smoke
 
+English | [中文](README.zh.md)
+
 ## Summary
 
-`dsh-loader-smoke` runs a real application bin and its `cordis.yml` through the Cordis Loader inside an isolated temporary directory, capturing stdout and stderr, so a smoke test exercises the true composition path — plugin loading, service wiring, and the agent loop — rather than a hand-built test context. `runFixtureTurn` drives one task through the composition's single root agent and returns the final assistant text and accumulated token usage. The package also provides the mode-aware launch resolver (`src` under tsx for zero-build dev, built `lib` under plain Node for CI) shared by package-local subprocess harnesses. It is support-tier test infrastructure, not a product API.
+Use `dsh-loader-smoke` to boot an application fixture from its real bin and `cordis.yml` in an isolated temporary directory, with captured output and cleanup. `runFixtureTurn` drives one task through the configured root agent and returns the final assistant text plus token usage. Tests can select zero-build source execution or built-package execution, so local and CI smoke tests use the intended consumer path for each environment. This support-tier library is for test authors, not product integrations.
 
 ## Table of Contents
 
@@ -110,6 +112,7 @@ None beyond the loaded tree; the helper neither changes the request prefix nor r
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define when the harness needs special care. They are current package constraints, not a task backlog.
 

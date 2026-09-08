@@ -5,6 +5,8 @@ kind: "package-bundle"
 
 # @deepseek-ai/dsh-experimental-agent-team-web-profile
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-experimental-agent-team-web-profile` is the private Web layer for [Agent Teams](../agent-team/README.md). Add it after `@deepseek-ai/dsh-web-app` and [`@deepseek-ai/dsh-experimental-agent-team-profile`](../agent-team-profile/README.md) to show the Team roster, task board, and teammate navigation in the browser. Removing either experimental layer leaves the stable base and Web composition unchanged. Official releases exclude this package, so it is available only from a source checkout.
@@ -82,7 +84,7 @@ This Web bundle adds no model request content; the Host-side Team tools own prom
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Ordered composition** — `dsh-base`, `dsh-web-app`, `dsh-experimental-agent-team-profile`, and this package must remain in that order.
-- **Preset-scoped legacy controls** — stable Web presets still mount continuable Subagent controls inside the preset scope. Top-level Host profile overrides do not replace those scoped registrations, so the Team roster and legacy child controls can both appear until Web has a Team-aware preset. The [Web Agent Teams decision](../../../.agents/notes/implemented/feature/2026-08-06-agent-teams-web.md) records this deferred composition work.
+- **Preset-scoped legacy controls** — stable Web presets still mount continuable Subagent controls inside the preset scope. Top-level Host profile overrides do not replace those scoped registrations, so the Team roster and legacy child controls can both appear until Web has a Team-aware preset. The [Web Agent Teams decision](../../../.agents/notes/archived/feature/2026-08-06-agent-teams-web.md) records this deferred composition work.
 - **Source-checkout only** — official CLI, Web, npm, and Python release payloads exclude this private package.
 
 <a id="dev-note"></a>

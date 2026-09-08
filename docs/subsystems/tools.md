@@ -1,5 +1,7 @@
 # Tools
 
+English | [中文](tools.zh.md)
+
 The tool pipeline of [dsh-tools](../../packages/core/tools). [core.md](core.md) introduces `ToolDefinition` as the pipeline-authoring type shared by the core packages; the model-facing [`ToolSchema`](llm-streaming.md#the-model-request-and-result) wire type is declared with the model request. This page documents every `ToolDefinition` field, the typed schema DSL that builds it, the guarded execution types, and the UI-presentation types.
 
 Source: [`packages/core/tools/src/index.ts`](../../packages/core/tools/src/index.ts) · [`packages/core/tools/src/schema.ts`](../../packages/core/tools/src/schema.ts) · [`packages/core/tools/src/presentation.ts`](../../packages/core/tools/src/presentation.ts)
@@ -260,14 +262,14 @@ PTC mode's bridge additionally exposes each settled sub-dispatch to the `tools/p
  * copy a listener may reshape. `content` is the RENDERED result projection
  * (what a native `tool/result` would carry) — the program itself received
  * the structured `value` (or just the error message on failure); only the
- * `tool/code-dispatch` event's copy changes.
+ * `tool/ptc-dispatch` event's copy changes.
  */
 interface PtcDispatchLog {
   /** The outer `run_code` execution. */
   readonly exec: ToolExecution
   /** The calling agent (the scope routing key and the spill owner), when the outer call has one. */
   readonly agent?: Agent
-  /** Deterministic sub-call id (`<parent>:code:<n>`). */
+  /** Opaque sub-call id; new calls use `<parent>:ptc:<n>`. */
   readonly subCallId: ToolCallId
   /** The dispatched sub-tool name. */
   readonly name: string
@@ -365,7 +367,7 @@ interface ToolExecutionFailure {
 type ToolExecutionResult = ToolExecutionSuccess | ToolExecutionFailure
 ```
 
-The result carries only the outcome. Call identity remains on the immutable `ToolExecution` that accompanies it through every hook and on the durable `tool/call` / `tool/result` session events, so wrappers cannot create a second, disagreeing identity. The canonical `value` is execution-local: the loop persists only `content`, `error`, and `meta`, while `tool/code-dispatch` stores the sub-call's rendered `content` and `isError` verbatim. Replay reproduces presentation but cannot reconstruct canonical intermediate values.
+The result carries only the outcome. Call identity remains on the immutable `ToolExecution` that accompanies it through every hook and on the durable `tool/call` / `tool/result` session events, so wrappers cannot create a second, disagreeing identity. The canonical `value` is execution-local: the loop persists only `content`, `error`, and `meta`, while `tool/ptc-dispatch` stores the sub-call's rendered `content` and `isError` verbatim. Replay reproduces presentation but cannot reconstruct canonical intermediate values.
 
 On success the registry snapshots and validates the body value, freezes it, and invokes the pure renderer plus the optional top-level-call metadata projector. It separately materializes the durable presentation fields immediately before `tools/result`; an invalid value, renderer/projector failure, or non-JSON presentation becomes a JSON-safe `isError`. The final live observer therefore sees the exact execution-local value beside fields safe for the later durable append.
 
@@ -472,45 +474,6 @@ The full presentation field docs live in [`packages/core/tools/src/presentation.
 ## Cordis API
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
-
-<a id="ctxmcpserver--mcpserverservice"></a>
-
-### `ctx.mcpServer` — `McpServerService`
-
-Cordis Service providing MCP Server integration.
-
-```ts cordis-catalog
-/**
- * Whether the mcpServer experiment is enabled for this context.
- * @param options - flag and cancellation overrides for this check.
- * @returns true when the server may advertise and execute tools.
- */
-isEnabled(options?: McpToolOptions): boolean
-
-/**
- * Standard MCP tool definitions for the registered DSH tools and session operations.
- * @param options - flag and cancellation overrides for this listing.
- * @returns one definition per advertised tool, in registry order.
- */
-getTools(options?: McpToolOptions): readonly McpToolDefinition[]
-
-/**
- * Execute one tool call formatted according to standard MCP.
- * @param name - the advertised tool name.
- * @param args - unvalidated arguments as received from the client.
- * @param options - flag and cancellation overrides for this call.
- * @returns the MCP tool result; refusals and failures are `isError` results.
- */
-executeTool( name: string, args: Record<string, unknown>, options?: McpToolOptions, ): Promise<McpToolCallResult>
-
-/**
- * The MCP server instance for this service, created on first use.
- * @returns the lazily created server; the same instance on every call.
- */
-getServer(): McpServer
-```
-
-Source: [`packages/mcp/mcp-server/src/index.ts`](../../packages/mcp/mcp-server/src/index.ts)
 
 <a id="ctxtools--toolruntime"></a>
 
@@ -711,13 +674,13 @@ Source: [`packages/core/tools/src/index.ts`](../../packages/core/tools/src/index
 
 #### `tools/ptc-dispatch-log` — waterfall
 
-Allow a listener to replace content in the DURABLE LOG COPY of one `run_code` sub-dispatch outcome before the bridge appends its `tool/code-dispatch` event. `next()` keeps the content unchanged; a listener may return replacement blocks (e.g. the spill policy's preview + locator for an oversized text result). Only the logged copy is affected — the program already received the complete value, and the model sees neither. A throwing listener is contained: the bridge falls back to logging the original settled content. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's dispatches.
+Allow a listener to replace content in the DURABLE LOG COPY of one `run_code` sub-dispatch outcome before the bridge appends its `tool/ptc-dispatch` event. `next()` keeps the content unchanged; a listener may return replacement blocks (e.g. the spill policy's preview + locator for an oversized text result). Only the logged copy is affected — the program already received the complete value, and the model sees neither. A throwing listener is contained: the bridge falls back to logging the original settled content. Scope-filtered dispatch (`@deepseek-ai/dsh-scope`): agent-scoped listeners receive only that agent's dispatches.
 
 ```ts cordis-catalog
 /**
  * Allow a listener to replace content in the DURABLE LOG COPY of one
  * `run_code` sub-dispatch outcome before the bridge appends its
- * `tool/code-dispatch` event. `next()` keeps the
+ * `tool/ptc-dispatch` event. `next()` keeps the
  * content unchanged; a listener may return replacement blocks (e.g. the
  * spill policy's preview + locator for an oversized text result). Only the
  * logged copy is affected — the program already received the complete

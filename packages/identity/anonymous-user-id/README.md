@@ -5,9 +5,11 @@ kind: "package-library"
 
 # @deepseek-ai/dsh-anonymous-user-id
 
+English | [中文](README.zh.md)
+
 ## Summary
 
-Every harness home gets one anonymous id that telemetry, feedback, and DeepSeek requests attach to their records, so receiving systems can tell that records came from the same installation without learning who the user is. The id is a random UUID stored in `$DSH_HOME/.anonymous-user-id` (`~/.dsh` by default); it appears automatically the first time one of those features runs, stays stable across restarts, and is created fresh if you delete the file. Separate harness homes never share an id, and no machine or account detail goes into it. Use it whenever you want to correlate records from one installation without an account; it cannot join records across different homes.
+DeepSeek Harness uses one anonymous identifier per harness home to correlate telemetry, feedback, and DeepSeek requests from the same installation without identifying the user. The random UUID is stored in `$DSH_HOME/.anonymous-user-id` (`~/.dsh` by default), persists across restarts, and is regenerated after you delete the file. Different harness homes use different identifiers, and the value contains no machine or account data. Built-in features create and attach it automatically; package consumers can reuse the same value for installation-scoped correlation, but cannot join records across homes.
 
 ## Table of Contents
 
@@ -112,6 +114,7 @@ None; the transport header changes neither tokens nor the model-visible prefix.
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits describe when the id is a poor fit or needs special attention. They are current package constraints, not a general comparison of anonymity approaches or a task backlog.
 

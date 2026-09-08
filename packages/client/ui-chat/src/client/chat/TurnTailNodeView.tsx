@@ -56,8 +56,8 @@ export const TurnTailNodeView = memo(function TurnTailNodeView({
         clock="end"
         onBranch={() => { forkAt(closing.finalNode.seq) }}
         branchUnavailable={data.branchUnavailable || hasLaterChatNode}
-        {...deleteAction}
         className={css.actions}
+        {...deleteAction}
         extraActions={assistantActions}
         usageAction={(
           <>

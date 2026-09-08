@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-jobs-local
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-jobs-local` runs background jobs inside the harness process: work keeps running while the agent moves on, and the owning agent can read, wait on, list, and cancel it, with completion delivered as an in-session notice when `dsh-tool-jobs` is also mounted. It implements the `dsh-jobs` contract with in-memory records handed out as fresh snapshots, never live state. A per-owner concurrency limit (default 10) bounds how many jobs one agent can have running or stopping at once; jobs die with the harness process and are not durable across restarts.
@@ -106,7 +108,7 @@ Read these pages when the package-level contract is not enough. They move from t
 - [Registry contract](../jobs/README.md) — the abstract `ctx.jobs` service this package implements.
 - [Model-facing job controls](../tool-jobs/README.md) — the `job_output`, `job_list`, and `job_kill` tools and completion notices.
 - [Generic long-running tool runtime Agent Note](../../../.agents/notes/implemented/architecture/2026-06-20-generic-long-running-tool-runtime.md) — the design behind the background-job runtime.
-- [job-registry seam Agent Note](../../../.agents/notes/implemented/architecture/2026-07-26-job-registry-seam.md) — the owner-fenced registry contract and its rationale.
+- [job-registry seam Agent Note](../../../.agents/notes/archived/architecture/2026-07-26-job-registry-seam.md) — the owner-fenced registry contract and its rationale.
 
 -----
 
@@ -122,6 +124,7 @@ No direct invalidation; the named consumers own any request-prefix changes.
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define when the registry is a poor fit. They are current package constraints, not a task backlog.
 

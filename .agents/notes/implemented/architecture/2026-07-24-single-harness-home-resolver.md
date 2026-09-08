@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-07-24-single-harness-home-resolver.zh.md)
+
 ## Problem
 
 The harness had two inconsistent conventions for "where does DeepSeek Harness user data live":
@@ -23,7 +25,7 @@ An empty or whitespace-only `$DSH_HOME` is treated as unset; otherwise `resolve(
 
 `@deepseek-ai/dsh-home` is deleted. Home-owning providers and boot packages import `resolveDshHome` from `dsh-home-paths`; composition bundles contain only the resolved configuration rows.
 
-`dsh-telemetry` and its separate home policy are absent under the [SDK project toolchain removal](../simplification/2026-08-11-remove-sdk-project-toolchain.md), leaving this resolver as the sole home policy.
+`dsh-telemetry` and its separate home policy are absent under the [SDK project toolchain removal](../../archived/simplification/2026-08-11-remove-sdk-project-toolchain.md), leaving this resolver as the sole home policy.
 
 ## Alternatives considered
 

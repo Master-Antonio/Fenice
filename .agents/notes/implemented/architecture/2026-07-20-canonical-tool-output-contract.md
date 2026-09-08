@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-07-20-canonical-tool-output-contract.zh.md)
+
 ## Problem
 
 Tool bodies previously authored model-facing `ContentBlock[]` directly, optionally wrapping it with opaque `meta`. Native function calling therefore had a usable human projection, but a programmatic caller had no stable domain value: PTC mode flattened the blocks back into a string, dynamic tools repeated the content shape, and policy could replace presentation without any way to distinguish that change from replacing the operation's result. Several capability seams already returned richer provider values only to discard them at their model-facing tool boundary.
@@ -32,7 +34,7 @@ type ToolExecutionResult =
 
 `tools/post-execute` has two mutually exclusive successful projections. Replacing `content` changes only Native/model presentation and preserves the canonical value and metadata. Replacing `value` revalidates the replacement and recomputes both presentation projections. A block removes the value and becomes a failure. Content replacement is therefore not a confidentiality mechanism: policy that must prevent programmatic access blocks the call or replaces the value.
 
-Canonical values are execution-local. The agent loop persists `tool/result` with only `content`, `error`, and optional `meta`; PTC mode's `tool/code-dispatch` persists the sub-call's rendered `content` and `isError`. Neither event stores the canonical intermediate value, so replay reproduces presentation but cannot reconstruct the programmatic result. When a tool declares `presentationMeta`, it is computed only for a direct surface call; a nested Code dispatch gets no metadata or result card. The outer `run_code` card instead reads final post-policy content and declares no presentation metadata. Generic and tool-owned spill projections similarly skip nested dispatches, whose canonical value never enters model context.
+Canonical values are execution-local. The agent loop persists `tool/result` with only `content`, `error`, and optional `meta`; PTC mode's `tool/ptc-dispatch` persists the sub-call's rendered `content` and `isError`. Neither event stores the canonical intermediate value, so replay reproduces presentation but cannot reconstruct the programmatic result. When a tool declares `presentationMeta`, it is computed only for a direct surface call; a nested Code dispatch gets no metadata. The Client can derive [nested terminal cards](../bug-fix/2026-09-05-nested-terminal-cards.md) from raw arguments and rendered content without that metadata. The outer `run_code` card instead reads final post-policy content and declares no presentation metadata. Generic and tool-owned spill projections similarly skip nested dispatches, whose canonical value never enters model context.
 
 The first-party tools preserve their existing Native text while returning domain DTOs:
 

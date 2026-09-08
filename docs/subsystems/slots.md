@@ -1,5 +1,7 @@
 # Web Client Slots
 
+English | [中文](slots.zh.md)
+
 Slots are the Web Client's typed React composition system. [`dsh-client-ui-slots`](../../packages/client/ui-slots/README.md) defines the React-free registry and type algebra; [`dsh-client-ui-renderer`](../../packages/client/ui-renderer/README.md) binds observable sources to hooks, renders the tree, and owns React contexts internally. A feature plugin contributes UI through `ctx.slots.register()` and never imports another feature plugin's component.
 
 This page documents slot ownership, component inputs, extension APIs, and the shipped hierarchy. The surrounding boot, Remote, Client model, and Conversation paths are in [Web Client architecture](web-client.md).
@@ -140,7 +142,8 @@ root
 │  ├─ conversation.session.header
 │  │  ├─ conversation.session.header.lineage
 │  │  ├─ conversation.session.header.actions
-│  │  └─ conversation.session.header.utilities
+│  │  ├─ conversation.session.header.utilities
+│  │  └─ conversation.session.header.corner
 │  ├─ conversation.composer
 │  │  └─ conversation.approval.detail
 │  ├─ conversation.composer.bar
@@ -156,8 +159,11 @@ root
 │  ├─ conversation.hero.workspace
 │  │  └─ conversation.hero.workspace.directoryFlow
 │  └─ conversation.hero.agentPreset
-├─ details
-│  └─ conversation.details.tool
+├─ rightbar
+│  ├─ sidebar.right.pane.tab
+│  │  └─ sidebar.right.tab.guide
+│  ├─ sidebar.right.pane.tab.title
+│  └─ sidebar.right.tab.menu.item
 └─ shell.overlay
 ```
 

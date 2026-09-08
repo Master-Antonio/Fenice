@@ -1,5 +1,7 @@
 # Token Meter
 
+English | [中文](token-meter.zh.md)
+
 `@deepseek-ai/dsh-token-meter` exposes one detached replay snapshot for request pressure and positional surface pricing. `logRevision` is the number of durable events consumed for every field in the measurement.
 
 Source: [`packages/llm/token-meter/src/types.ts`](../../packages/llm/token-meter/src/types.ts)
@@ -76,7 +78,8 @@ Replay owner for one service-wide estimator and isolated per-session folds.
  * usage is reused only when the latest successful call's canonical request
  * envelope matches `requestHeader` and its total is no lower than that
  * call's full route-priced anchor; otherwise the complete envelope and
- * surface are repriced.
+ * surface are repriced. The anchor includes all surface nodes immediately
+ * before the assistant message, including inputs admitted after step/start.
  *
  * `requestHeader` replaces the latest logged envelope for pressure and node
  * pricing; the node set always describes the current session surface. Every

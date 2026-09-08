@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-06-19-acp-snapshot-tests.zh.md)
+
 ## Problem
 
 Unit tests do not exercise the complete assembled-agent subprocess or its ACP automation wire, while real-API tests are nondeterministic and key-gated. Loader wiring, backend behavior, and protocol output can therefore regress despite green unit coverage, as the [default-export postmortem](../../../../docs/postmortem/0001-acp-default-export-drops-inject.md) demonstrated.
@@ -10,7 +12,7 @@ The blocker for a full-transcript test is the model: the agent's output is drive
 
 ## Decision
 
-A recorded-session snapshot starts a shipped profile through `dsh`, drives its public interface, and compares normalized output with committed expected outputs. ACP-owned scenarios additionally drive the stdio protocol and compare its transcript. A session log recorded once from the real API supplies all later model streams. The fixture is a [projection of the product's persisted JSONL](2026-08-18-session-snapshot-envelope-projection.md): its header and payloads remain, while body sequence/time envelopes are omitted.
+A recorded-session snapshot starts a shipped profile through `dsh`, drives its public interface, and compares normalized output with committed expected outputs. ACP-owned scenarios additionally drive the stdio protocol and compare its transcript. A session log recorded once from the real API supplies all later model streams. The fixture is a [projection of the product's persisted JSONL](../../archived/testing/2026-08-18-session-snapshot-envelope-projection.md): its header and payloads remain, while body sequence/time envelopes are omitted.
 
 The [session-log snapshot corpus decision](2026-08-24-session-log-snapshot-corpus.md) supersedes this note's ACP-specific placement and controller ownership. This note remains the rationale authority for session-log fixtures, replay derivation, exceptional overrides, normalization, and ACP transcript comparison.
 

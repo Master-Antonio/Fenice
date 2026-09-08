@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-07-24-agent-loop-observable-state-machine.zh.md)
+
 ## Problem
 
 The agent loop exposed its control flow as a large set of Cordis events. Separate `pre-step` and `post-step` checkpoints bracketed a step, `session-prefix` and `step-result` transformed request and response messages, `request-error` decided whether a failed request retried inside its turn, and `turn-continuation` plus `turn-stop` composed competing continuation decisions.
@@ -49,7 +51,7 @@ The inbox lifecycle complements, rather than replaces, the durable session log. 
 
 ## Related
 
-- [Unify agent delivery routing and coalesce injected context into user/message](../architecture/2026-07-22-unified-send-and-coalesced-user-messages.md)
+- [Unify agent delivery routing and coalesce injected context into user/message](../../archived/architecture/2026-07-22-unified-send-and-coalesced-user-messages.md)
 - [Remove implicit batching from ordinary sends](2026-07-17-one-send-one-turn.md)
 - [Microkernel event taxonomy](../architecture/2026-06-11-microkernel-event-taxonomy.md)
 - [Bounded LLM request recovery](../architecture/2026-06-21-bounded-llm-request-recovery.md)

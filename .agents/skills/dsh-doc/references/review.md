@@ -32,7 +32,7 @@ Retain a statement only when it helps the target reader act, reason, or avoid mi
 Require the following without forcing one universal internal heading set:
 
 - searchable YAML metadata with a precise `description` and the mechanically derived `kind` (`package-group`, `package-reference`, `package-library`, or `package-bundle`);
-- a three-to-five-sentence Summary that says what the subject DOES for its user or agent reader, with a linked Table of Contents;
+- a three-to-five-sentence English Summary of at most 100 `wc -w`-style words that says what the subject DOES for its user or agent reader, with a linked Table of Contents;
 - controlled English with explicit actors, stable terms, direct verbs, separated instructions and conditions, and unchanged modality;
 - when to choose or avoid the package;
 - a smallest safe configuration or usage path when one exists — for a bundle, the verified `dsh plugin` install path; for a library, the consumer entry point; never profile-install guidance for a shape that does not take it;
@@ -42,11 +42,11 @@ Require the following without forcing one universal internal heading set:
 - newcomer-facing Further Exploration where adjacent docs materially help;
 - a final non-authoritative Dev Note as the only home for partial ideas, scratches, and undecided directions.
 
-Do not restate JSDoc or generated catalogs. Link the owner and explain only the decision or relationship needed locally. Reject any user-facing section that narrates internals (function subjects, event streams, data flow) and any fold that enumerates APIs instead of explaining the concept.
+Do not restate JSDoc or generated catalogs. Link the owner and explain only the decision or relationship needed locally. A package Summary describes reader-visible capability rather than Cordis roles, registrations, or internal components, and it omits source identifiers unless readers directly use them in configuration, commands, or a public API. Reject any user-facing section that narrates internals (function subjects, event streams, data flow) and any fold that enumerates APIs instead of explaining the concept.
 
 ## Reference example
 
-The [session-persistence-jsonl README](../../../../packages/session/session-persistence-jsonl/README.md) demonstrates the format in production: searchable YAML whose `kind` selects this package-reference standard, a four-sentence Summary, a linked Table of Contents, a user-facing use section covering selection, configuration, layout, durability, and reading, a GitHub-native `<details>` fold for developer-facing design and storage details, Further Exploration, canonical Model Experience and Known Limitations sections, and a final Dev Note. Use its structure and evidence standards as the model for package READMEs and cross-package pages; ground every claim in its owning source and evidence.
+The `session-persistence-jsonl` README pair ([English](../../../../packages/session/session-persistence-jsonl/README.md), [Chinese](../../../../packages/session/session-persistence-jsonl/README.zh.md)) demonstrates the format in production: searchable YAML whose `kind` selects this package-reference standard, a four-sentence Summary, a linked Table of Contents, a user-facing use section covering selection, configuration, layout, durability, and reading, a GitHub-native `<details>` fold for developer-facing design and storage details, Further Exploration, canonical Model Experience and Known Limitations sections, and a final Dev Note. Use its structure, evidence standards, and bilingual alignment as the model for package READMEs and cross-package pages; ground every claim in its owning source and evidence.
 
 ## Verification
 

@@ -5,9 +5,11 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-http-proxy
 
+English | [中文](README.zh.md)
+
 ## Summary
 
-Node's built-in `fetch` ignores `HTTP_PROXY` and `HTTPS_PROXY`, so a harness behind a proxy would connect directly no matter what the user exported — the LLM request, every web search, MCP over HTTP, and the sandbox SDK alike. This package resolves one proxy policy from the launcher's environment snapshot and installs it as undici's global dispatcher, which is exactly what `fetch` resolves. Ordinary call sites therefore need no change and no import: they write `fetch()` and are proxied. Four functions cover everything the global dispatcher cannot reach on its own — install the policy, ask where one request goes, hand the policy to a spawned child, and strip it for a replay.
+Use this package to apply one outbound HTTP proxy policy to Harness requests that use Node's built-in `fetch`, including LLM, web-search, and HTTP MCP traffic. The launcher reads standard proxy environment variables once, and ordinary `fetch` callers require no extra imports or changes. Local loopback traffic stays direct, while unsupported proxy URLs are reported and skipped for the affected scheme. Public helpers let callers route transports with their own proxy settings, prepare child-process environments, or clear proxy variables for isolated replays.
 
 ## Table of Contents
 
@@ -100,6 +102,7 @@ No direct invalidation: the package contributes no request tokens and never muta
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define when the package is a poor fit. They are current package constraints.
 

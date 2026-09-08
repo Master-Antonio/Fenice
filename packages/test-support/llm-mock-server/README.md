@@ -5,9 +5,11 @@ kind: "package-library"
 
 # @deepseek-ai/dsh-llm-mock-server
 
+English | [中文](README.zh.md)
+
 ## Summary
 
-`dsh-llm-mock-server` stands in for a real model provider during tests as a scriptable OpenAI-compatible HTTP/SSE server: you script a sequence of wire behaviors — stream resets, stalls, malformed chunks, rate limits, server errors, successful completions, tool calls — and each accepted `/chat/completions` request consumes the next one. It serves the shipping DeepSeek adapter and the agent loop over real HTTP, so recovery policy such as retries, backoff, and timeouts is exercised against a genuine wire boundary without a provider key. A CLI (`pnpm run mock:llm`) runs the server standalone; the library entry `startMockLlmServer` embeds it in tests and returns captured requests. A `random` behavior with seeded weights mixes failures for open-ended stress runs.
+This package gives tests and demos a scriptable OpenAI-compatible HTTP/SSE endpoint, so they can exercise model-provider failures and successes without a provider key. Each accepted `/chat/completions` request consumes the next scripted behavior, including resets, stalls, malformed chunks, rate limits, server errors, completions, and tool calls. Test authors can run it with `pnpm run mock:llm` or call `startMockLlmServer`, which returns captured requests for assertions. Seeded `random` behavior supports reproducible mixed-failure stress runs.
 
 ## Table of Contents
 
@@ -149,6 +151,7 @@ None; requests terminate locally and never reach a provider cache.
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define when the server needs special care. They are current package constraints, not a task backlog.
 

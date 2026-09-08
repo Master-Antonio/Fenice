@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-compaction
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-compaction` lets a long session condense its older history into a single summary message, keep the recent conversation intact, and continue as if the summary had always been there — with a backend such as `dsh-compaction-basic` and the optional `/compact` command. The condensed content stays in the session log, so replaying the session reproduces the exact conversation. Reach for this package when you implement a condensation backend, build something that triggers condensation, or need to recognize condensed messages — it performs no condensation itself. Choose the shipped backend when you just want the feature working out of the box.
@@ -88,7 +90,7 @@ The Service Definition exports `toolPairingBalancedBefore(session, seq)` and `to
 
 ### The surface contract
 
-`SurfaceEventType` is a closed union — only `user/message`, `assistant/message`, and `tool/result` may carry `surfaceOp`, so a `compaction/*` event cannot appear on the surface. A successful backend run instead brackets the operation in the log: it appends `compaction/start` (log-only) to acquire the lock, summarizes the range, appends the log-only `compaction/summary` record, replaces the selected span with one `user/message` carrying the summary — the only surface mutation — and appends `compaction/end` (log-only) to release the lock.
+`SurfaceEventType` is a closed union — `user/message`, `assistant/message`, and `tool/result` require `surfaceOp`, and other events forbid it, so a `compaction/*` event cannot appear on the surface. A successful backend run instead brackets the operation in the log: it appends `compaction/start` (log-only) to acquire the lock, summarizes the range, appends the log-only `compaction/summary` record, replaces the selected span with one `user/message` carrying the summary — the only surface mutation — and appends `compaction/end` (log-only) to release the lock.
 
 The replacement sits inside the lock bracket, so a crash between `compaction/start` and `compaction/end` leaves a detectable orphaned lock rather than a `compaction/end` that falsely claims success. `deriveMessages()` renders the summary as a user-role message followed by the retained nodes; the shadowed events stay in the raw log, so replay is deterministic. The per-event payloads are enumerated in the [compaction subsystem reference](../../../docs/subsystems/compaction.md).
 
@@ -136,7 +138,7 @@ Read these pages when the package-level contract is not enough; they move from t
 
 #### What the model sees
 
-A successful backend replaces an older surface range with one user-role summary checkpoint — a `user/message` carrying `surfaceOp: { op: 'replace', start, end }`. The raw events stay logged but stop appearing in derived model messages; the seam itself performs no rewrite.
+A successful backend replaces an older surface range with one user-role summary checkpoint — a `user/message` carrying `surfaceOp: { op: 'replace', startSeq, endSeq }`. The raw events stay logged but stop appearing in derived model messages; the seam itself performs no rewrite.
 
 #### Token effect
 
@@ -149,6 +151,7 @@ A successful backend replacement invalidates reuse from the first shadowed histo
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits describe what condensation cannot do, regardless of which backend is loaded; they are the current package constraints.
 

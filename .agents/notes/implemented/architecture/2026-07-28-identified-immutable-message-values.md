@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-07-28-identified-immutable-message-values.zh.md)
+
 ## Problem
 
 The harness had several message-shaped representations with different identity rules. Agent input acquired an inbox correlation id only when the loop accepted it, while durable user messages, assistant messages, tool results, and model-request messages could have no identity. Prompt admission therefore sat between creation and identity, and equivalent content was copied across live events, durable events, and model requests without one value that named the message throughout its lifetime.
@@ -44,5 +46,5 @@ The message and helper unit tests pin immediate identity, detachment, deep immut
 
 ## Related
 
-- [Unified agent delivery routing and coalesced injected context](2026-07-22-unified-send-and-coalesced-user-messages.md) — this note supersedes its input-representation and agent-assigned-id details while retaining its routing decision.
+- [Unified agent delivery routing and coalesced injected context](../../archived/architecture/2026-07-22-unified-send-and-coalesced-user-messages.md) — this note supersedes its input-representation and agent-assigned-id details while retaining its routing decision.
 - [Reconstructable requests](2026-07-05-reconstructable-requests.md) — the session log remains the authority for every model-visible input.

@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-08-27-handle-based-session-persistence.zh.md)
+
 ## Problem
 
 The previous persistence seam owned far more than storage. A shared coordinator subscribed to `session/created`/`session/event`/`session/flush`/`session/disposed` and adopted any published session (ownerless claims, HMR re-seeding, stored-prefix adoption); a bounded prepared-Session LRU with exclusive reservations served resume and read-only observation from one cache; committing crash repair lived inside `load`/`prepare`; and optimistic revision read/check/read loops stood in for ownership, so a continuous external writer could livelock a read and nothing excluded a second writer. The service surface (twelve methods) mixed storage with Session construction and lifecycle. Cross-process write ownership — the next step — has no honest home in that shape: ownership belongs to an explicit per-session channel with an owner, not to a global listener.
@@ -35,6 +37,6 @@ Resume, fork, subagent, ACP, webhook, and SDK sessions all persist through one e
 ## Related
 
 - [Session persistence as an abstract service](2026-06-14-session-persistence.md) — the seam this reshapes; its interface list reflects the handle API.
-- [Persistence export() and pre-release trims](../simplification/2026-08-27-persistence-export-and-pre-release-trims.md) — the preparatory removals, including the retired cold blank probe.
+- [Persistence export() and pre-release trims](../../archived/simplification/2026-08-27-persistence-export-and-pre-release-trims.md) — the preparatory removals, including the retired cold blank probe.
 - [Retain ignorable external session events](2026-08-30-retain-ignorable-external-session-events.md) — the read-side refusal contract, now shared through `storage-contract` helpers.
-- [Bounded session-persistence write batching](2026-08-08-bounded-session-persistence-write-batching.md) — the batching semantics the routed write path preserves as internal scheduling policy.
+- [Bounded session-persistence write batching](../../archived/architecture/2026-08-08-bounded-session-persistence-write-batching.md) — the batching semantics the routed write path preserves as internal scheduling policy.

@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-07-24-separate-context-injection-from-turn-execution.zh.md)
+
 ## Problem
 
 The agent API represented supplementary model-facing input in three overlapping ways: callers attached `HookContext[]` through `SendOptions.contexts`, interception and tool hooks returned `additionalContexts`, and plugins called `agent.inject()`. These paths eventually wrote context into the same model history, but carried different placement, metadata, admission, queue, and turn-lifecycle rules.
@@ -38,7 +40,7 @@ The enter branch's `PreStepDecision.messages` is the complete batch for the prop
 
 Caller-driven injection and current-step context deliberately use different timing. `inject()` joins the next pre-step available and cannot promise that a request already being finalized will consume it. A listener that must affect that exact request returns the context in `PreStepDecision.messages`; downstream rejection or failure then prevents it from materializing.
 
-Cross-session references use that domain composition: TUI prepares the snapshot, returns it from the idle direct message's pre-step beside that message, or injects it before waking steering during a running turn. The target log contains two simple messages, so later source mutation cannot change replay and transcript consumers do not need a prompt envelope. This supersedes the attachment mechanism in the [cross-session reference decision](../feature/2026-07-21-cross-session-references.md) while retaining its snapshot and trust-boundary rules.
+Cross-session references use that domain composition: TUI prepares the snapshot, returns it from the idle direct message's pre-step beside that message, or injects it before waking steering during a running turn. The target log contains two simple messages, so later source mutation cannot change replay and transcript consumers do not need a prompt envelope. This supersedes the attachment mechanism in the [cross-session reference decision](../../archived/feature/2026-07-21-cross-session-references.md) while retaining its snapshot and trust-boundary rules.
 
 This decision preserves the caller-owned framing decision from [unwrapped injected content](../simplification/2026-07-20-unwrap-injected-content-envelopes.md) and the one-item turn rule from [one send, one turn](../simplification/2026-07-17-one-send-one-turn.md). The later [standalone log-only event decision](../simplification/2026-07-28-remove-synthetic-log-only-turns.md) applies the same execution-only meaning to plugin-owned records.
 

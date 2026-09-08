@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-host-directory-picker-auto
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-host-directory-picker-auto` picks the right directory-picking interaction for every boot: it resolves the host's situation once at boot and mounts the matching backend — [native](../directory-picker-native/README.md) or [browse](../directory-picker-browse/README.md) — together with its browser half, as real Loader entries in the in-memory root tree. The resolution is one pure boot-time sample: `native` requires a loopback-only bind, a non-SSH launch, and a servable display session; anything ambiguous resolves to `browse`, which works everywhere. Pinning an interaction means composing that backend directly. The mounted capability stays stable for the service lifetime, as the seam requires.
@@ -27,7 +29,7 @@ Compose this plugin instead of a concrete backend when the same composition must
 
 ### How the choice is made
 
-`native` requires every signal that the operator can see the host display and the native backend can serve it: a loopback-only bind (read from the injected `webServer`; an all-interfaces bind admits remote browsers no OS chooser can reach), no SSH launch (`SSH_CONNECTION`/`SSH_TTY` unset or blank), and a servable display session — assumed on darwin and win32; on linux, `DISPLAY`/`WAYLAND_DISPLAY` plus a zenity or kdialog binary on `PATH`; never on any other platform. Anything ambiguous resolves to `browse`, which works everywhere.
+`native` requires every signal that the operator can see the host display and the native backend can serve it: a loopback-only bind (read from the injected `webServer`; an all-interfaces bind admits remote browsers no OS chooser can reach), no SSH launch (the shared [launch-environment](../../util/launch-environment/README.md) predicate ignores project/user `.env` values and checks only inherited non-empty `SSH_CONNECTION`/`SSH_TTY`), and a servable display session — assumed on darwin and win32; on linux, `DISPLAY`/`WAYLAND_DISPLAY` plus a zenity or kdialog binary on `PATH`; never on any other platform. Anything ambiguous resolves to `browse`, which works everywhere.
 
 ### What you get
 
@@ -81,7 +83,7 @@ The chooser is a pure decision plus a mount: `resolveDirectoryPickerBackend` sam
 Read these when the chooser's contract is not enough: the seam definition first, then the two backends it mounts.
 
 - [Directory-picker seam](../directory-picker/README.md) — the capability contract the chooser composes.
-- [Directory-picker capability seam decision](../../../.agents/notes/implemented/architecture/2026-07-28-directory-picker-capability-seam.md) — why backends differ in interaction shape.
+- [Directory-picker capability seam decision](../../../.agents/notes/archived/architecture/2026-07-28-directory-picker-capability-seam.md) — why backends differ in interaction shape.
 - [Native backend](../directory-picker-native/README.md) — the interaction mounted for a local operator.
 - [Browse backend](../directory-picker-browse/README.md) — the interaction mounted everywhere else.
 
@@ -99,6 +101,7 @@ None; this package neither assembles nor sends a provider request.
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define when the boot-time sample can misjudge the host. They are current package constraints, not a task backlog.
 

@@ -3,6 +3,8 @@
 Status: implemented
 Archived: 2026-07-26
 
+English | [中文](2026-07-04-drop-unconsumed-web-observation-surface.zh.md)
+
 ## Problem
 
 `WebService` exposes an observation surface no production code observes:

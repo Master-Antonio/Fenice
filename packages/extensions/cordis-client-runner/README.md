@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-cordis-client-runner
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `dsh-cordis-client-runner` lets a page run the browser half of a dynamic Cordis package: it answers the host's run requests, loads the browser-half source into the page as a live plugin, and removes it when the host retracts the run. A person approves or declines a run — or starts one directly — and the result this package reports back becomes the `cordis_run` tool result the model reads. Nothing loads at activation and nothing is restored after a refresh; a page runs a dynamic package only when someone answers a run request or asks for it here.
@@ -81,7 +83,6 @@ Read these pages when the package-level contract is not enough. They move from t
 - [Tool package](../tool-cordis/README.md) — the model-facing tools whose run requests reach this page.
 - [UI package](../ui-cordis/README.md) — the panel and cards that operate this face.
 - [Extensions subsystem](../../../docs/subsystems/extensions.md) — the generated `ctx.dynamicCordisRunner` API and `cordis/*` events.
-- [Dynamic client render and attachment ownership Agent Note](../../../.agents/notes/implemented/architecture/2026-08-17-dynamic-client-render-and-attachment-ownership.md) — how browser plugins own their rendering and CSS.
 - [Client shells and dynamic packages Agent Note](../../../.agents/notes/implemented/architecture/2026-08-15-client-shells-and-dynamic-packages.md) — package placement and build faces for the client halves.
 
 -----
@@ -120,6 +121,7 @@ None of its own. Reports travel over RPC and are stored, not appended to the con
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define where the browser half needs special care. They are current package constraints, not a task backlog.
 

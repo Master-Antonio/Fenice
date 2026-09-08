@@ -5,9 +5,11 @@ kind: "package-reference"
 
 # @deepseek-ai/dsh-tool-session-query
 
+English | [中文](README.zh.md)
+
 ## Summary
 
-`dsh-tool-session-query` gives the model five read-only tools over session history: `session_search`, `session_event_search`, `session_trace`, `session_event_trace`, and `session_event_read`. The tools are workspace-authorized — a model can only reach sessions whose `cwd` exactly matches its own caller session — and results are cursor-free plain text, so the model can search prior work and follow a useful hit into its lineage or exact event data. The shared base composition mounts the package with a lazily opened full-text index, so recall costs five schemas per request but no SQLite work until the first search call. Configuration and usage come first; the implementation internals live in a collapsible developer section below.
+Use `dsh-tool-session-query` to let a model search earlier sessions, inspect event matches, trace session or event relationships, and read exact event data. Its five read-only tools return cursor-free text and authorize cross-session access only when the target session's `cwd` exactly matches the caller's; callers without a `cwd` can inspect only themselves. Search excludes the caller session and asks the model to narrow its query when the deployment result cap is reached. The package is opt-in, and enabling it adds fixed guidance plus five tool schemas to every model request.
 
 ## Table of Contents
 
@@ -73,7 +75,7 @@ The consumer is built on one separation and three commitments:
 - **One model-boundary sanitizer.** Every trusted `ctx.sessionQuery` call goes through the service boundary, which preserves cancellation and contains diagnostic and classification failures.
 - **No second truncation format.** Results stay complete; the generic spill policy owns bounded inline output.
 
-The design history lives in the [model-facing session query tools note](../../../.agents/notes/implemented/feature/2026-07-24-model-facing-session-query-tools.md) and the [session-search-not-shipped-default note](../../../.agents/notes/implemented/feature/2026-08-02-session-search-not-shipped-default.md).
+The design history lives in the [model-facing session query tools note](../../../.agents/notes/archived/feature/2026-07-24-model-facing-session-query-tools.md) and the [session-search-not-shipped-default note](../../../.agents/notes/archived/feature/2026-08-02-session-search-not-shipped-default.md).
 
 ### Source map
 
@@ -103,7 +105,7 @@ Read these pages when the package-level contract is not enough. They move from t
 - [dsh-session-query](../session-query/README.md) — the service these tools call.
 - [dsh-session-query-sqlite](../session-query-sqlite/README.md) — the full-text backend behind the two search tools.
 - [Session Query subsystem reference](../../../docs/subsystems/session-query.md) — the type-level contract under the tools.
-- [Model-facing session query tools](../../../.agents/notes/implemented/feature/2026-07-24-model-facing-session-query-tools.md) — workspace authority, cursor-free results, and spill decisions.
+- [Model-facing session query tools](../../../.agents/notes/archived/feature/2026-07-24-model-facing-session-query-tools.md) — workspace authority, cursor-free results, and spill decisions.
 
 -----
 
@@ -148,7 +150,7 @@ Prefix-stable while tool visibility and definitions are unchanged.
 
 #### What the model sees
 
-Each successful call emits one plain-text block. Search results include titles and best-match excerpts; traces include all authorized relationships; event reads include unabridged target JSON. The generic spill policy may replace oversized inline text with its preview, opaque locator, and retrieval hint. Event reads serve the log-intact original behind a tool-result-pruner replacement, so a pruned wire marker never destroys the recoverable text; follow the replacement chain with session_event_trace when lineage matters.
+Each successful call emits one plain-text block. Search results include titles and best-match excerpts; traces include all authorized relationships; event reads include unabridged target JSON. The generic spill policy may replace oversized inline text with its preview, opaque locator, and retrieval hint.
 
 #### Token effect
 
@@ -161,6 +163,7 @@ Append-only result text follows the reusable request prefix and does not invalid
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
+
 
 These limits define when this package is a poor fit or needs special operational care. They are current package constraints, not a task backlog.
 
